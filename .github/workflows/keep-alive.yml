@@ -1,0 +1,18 @@
+# Ping /health định kỳ để máy chủ Render (gói free) không "ngủ" -> luôn mở nhanh.
+# GitHub Actions cron tối thiểu 5 phút; đặt ~14 phút (trước mốc ngủ 15 phút của Render).
+# Lưu ý: lịch GitHub có thể chạy trễ vài phút lúc tải cao -> thỉnh thoảng vẫn ngủ, chấp nhận được.
+name: keep-alive
+
+on:
+  schedule:
+    - cron: "*/14 * * * *"
+  workflow_dispatch: {} # cho phép bấm chạy tay trong tab Actions
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: |
+          echo "Ping $(date -u)"
+          curl -fsS --max-time 60 https://app-dich-tieng-anh-trung.onrender.com/health

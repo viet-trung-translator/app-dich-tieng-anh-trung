@@ -31,6 +31,11 @@ export class StreamPlayer {
     this.nextTime += buffer.duration;
   }
 
+  /** Đang còn audio xếp lịch phát (dùng để tạm ngắt thu mic -> chống vọng âm). */
+  isPlaying(): boolean {
+    return this.nextTime > this.ctx.currentTime + 0.05;
+  }
+
   /** Huỷ mọi audio đang chờ phát (khi người dùng nói chen ngang). */
   flush(): void {
     this.nextTime = this.ctx.currentTime;

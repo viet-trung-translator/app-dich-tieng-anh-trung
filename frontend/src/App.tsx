@@ -12,15 +12,22 @@ export function App() {
   const [source, setSource] = useState(""); // câu gốc
   const [translation, setTranslation] = useState(""); // bản dịch
   const [statusMsg, setStatusMsg] = useState("Bấm micro để bắt đầu.");
+  const [playing, setPlaying] = useState(false); // loa đang phát bản dịch
 
   const recorderRef = useRef<MicRecorder | null>(null);
   const playerRef = useRef<StreamPlayer | null>(null);
   const socketRef = useRef<TranslateSocket | null>(null);
+  const everOpenRef = useRef(false); // đã từng kết nối thành công chưa
+  const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Lần đầu chưa kết nối được thường do máy chủ free đang "thức dậy" (~50s).
+  const COLD_START = "Máy chủ đang khởi động (gói free), có thể chờ tới ~50 giây...";
 
   async function start() {
     setUi("active");
     setSource("");
     setTranslation("");
+    everOpenRef.current = false;
     setStatusMsg("Đang kết nối...");
 
     const player = new StreamPlayer();
@@ -31,14 +38,22 @@ export function App() {
     socketRef.current = socket;
     recorderRef.current = recorder;
 
-    // Mic chạy độc lập; nếu WS đang đứt thì sendAudio tự bỏ qua, có lại là gửi tiếp.
+    // Chống vọng âm: KHÔNG gửi mic khi loa đang phát bản dịch (kẻo dịch lại chính nó).
     try {
-      await recorder.start((pcm) => socket.sendAudio(pcm));
+      await recorder.start((pcm) => {
+        if (playerRef.current?.isPlaying()) return;
+        socket.sendAudio(pcm);
+      });
     } catch (err) {
       setUi("error");
       setStatusMsg("Không truy cập được micro: " + String(err));
       return;
     }
+
+    // Theo dõi trạng thái phát để cập nhật UI + biết khi nào tạm ngắt thu.
+    playTimerRef.current = setInterval(() => {
+      setPlaying(Boolean(playerRef.current?.isPlaying()));
+    }, 150);
 
     socket.connect(
       (e) => handleServerEvent(e, player),
@@ -50,13 +65,14 @@ export function App() {
     setConn(s);
     switch (s) {
       case "connecting":
-        setStatusMsg("Đang kết nối...");
+        setStatusMsg(everOpenRef.current ? "Đang kết nối lại..." : COLD_START);
         break;
       case "open":
+        everOpenRef.current = true;
         setStatusMsg("Đang nghe... (nói tiếng Trung hoặc tiếng Anh)");
         break;
       case "reconnecting":
-        setStatusMsg("Mất kết nối — đang kết nối lại...");
+        setStatusMsg(everOpenRef.current ? "Mất kết nối — đang kết nối lại..." : COLD_START);
         break;
       case "closed":
         setStatusMsg("Đã dừng.");
@@ -87,6 +103,8 @@ export function App() {
   }
 
   async function stop() {
+    if (playTimerRef.current) clearInterval(playTimerRef.current);
+    playTimerRef.current = null;
     socketRef.current?.close();
     await recorderRef.current?.stop();
     await playerRef.current?.close();
@@ -96,11 +114,17 @@ export function App() {
     setUi("idle");
     setConn("closed");
     setLevel(0);
+    setPlaying(false);
     setStatusMsg("Đã dừng. Bấm micro để bắt đầu lại.");
   }
 
   const active = ui === "active";
   const reconnecting = conn === "reconnecting";
+  // Khi đang phát bản dịch thì báo cho người dùng biết mic tạm ngắt (chống vọng âm).
+  const displayStatus =
+    ui !== "error" && conn === "open" && playing
+      ? "🔊 Đang phát bản dịch... (tạm ngắt thu để chống vọng âm)"
+      : statusMsg;
 
   return (
     <div className="app">
@@ -115,7 +139,7 @@ export function App() {
         {active ? "■" : "🎤"}
       </button>
 
-      <div className={`status ${reconnecting ? "warn" : ""}`}>{statusMsg}</div>
+      <div className={`status ${reconnecting ? "warn" : ""}`}>{displayStatus}</div>
 
       <div className="panes">
         <div className="pane">
