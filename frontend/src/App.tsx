@@ -38,12 +38,10 @@ export function App() {
     socketRef.current = socket;
     recorderRef.current = recorder;
 
-    // Chống vọng âm: KHÔNG gửi mic khi loa đang phát bản dịch (kẻo dịch lại chính nó).
+    // Chế độ song song: thu mic LIÊN TỤC, loa dịch và phát theo cùng lúc, không ngắt.
+    // (Dùng tai nghe để loa không lọt lại vào mic -> tránh vọng âm.)
     try {
-      await recorder.start((pcm) => {
-        if (playerRef.current?.isPlaying()) return;
-        socket.sendAudio(pcm);
-      });
+      await recorder.start((pcm) => socket.sendAudio(pcm));
     } catch (err) {
       setUi("error");
       setStatusMsg("Không truy cập được micro: " + String(err));
@@ -120,10 +118,10 @@ export function App() {
 
   const active = ui === "active";
   const reconnecting = conn === "reconnecting";
-  // Khi đang phát bản dịch thì báo cho người dùng biết mic tạm ngắt (chống vọng âm).
+  // Chế độ song song: vừa nghe vừa phát bản dịch cùng lúc.
   const displayStatus =
     ui !== "error" && conn === "open" && playing
-      ? "🔊 Đang phát bản dịch... (tạm ngắt thu để chống vọng âm)"
+      ? "🔊 Đang nghe & dịch ra loa cùng lúc..."
       : statusMsg;
 
   return (
