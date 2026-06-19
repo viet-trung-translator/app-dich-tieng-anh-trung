@@ -144,11 +144,23 @@ function detectLang(text: string): string {
   return /[㐀-鿿豈-﫿]/.test(text) ? "zh" : "vi";
 }
 
+// Sau mốc im lặng này (ms) thì mở khóa ngôn ngữ -> lượt sau nhận diện lại từ đầu.
+const TURN_IDLE_RESET_MS = 1000;
+// Nếu giữ audio mà mãi không nhận diện được tiếng -> vẫn nhả ra để không bị câm.
+const HOLD_FALLBACK_MS = 700;
+
 export class GeminiLiveBrain implements TranslatorBrain {
   private ai: GoogleGenAI;
   private streams: TranslationStream[] = [];
   private greeted = false;
-  private inputLang: string | null = null; // ngôn ngữ đang nói (cập nhật liên tục)
+
+  // Khóa ngôn ngữ theo lượt: chốt 1 lần đầu lượt, không lật giữa chừng.
+  private turnLang: string | null = null;
+  private held: { idx: number; e: BrainEvent }[] = [];
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private holdTimer: ReturnType<typeof setTimeout> | null = null;
+  private targets: string[] = [];
+  private out: (e: BrainEvent) => void = () => {};
 
   constructor() {
     this.ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
@@ -162,6 +174,7 @@ export class GeminiLiveBrain implements TranslatorBrain {
       });
       return;
     }
+    this.out = onEvent;
 
     const greetOnce = () => {
       if (!this.greeted) {
@@ -170,25 +183,64 @@ export class GeminiLiveBrain implements TranslatorBrain {
       }
     };
 
-    const onInput = (text: string) => {
-      this.inputLang = detectLang(text);
-    };
-
     const [a, b] = config.languages;
-    const targets = [a, b];
-
-    // CHỈ phát luồng có đích KHÁC tiếng đang nói (luồng dịch ra đúng tiếng đang nói
-    // là echo/vô nghĩa -> bỏ). Nhờ vậy nói Trung ra Việt, nói Việt ra Trung.
-    const makeEmit = (idx: number) => (e: BrainEvent): void => {
-      if (e.type === "audio" && this.inputLang && targets[idx] === this.inputLang) return;
-      onEvent(e);
-    };
+    this.targets = [a, b];
 
     this.streams = [
-      new TranslationStream(this.ai, a, makeEmit(0), true, onInput, greetOnce),
-      new TranslationStream(this.ai, b, makeEmit(1), false, onInput, greetOnce),
+      new TranslationStream(this.ai, a, this.makeEmit(0), true, (t) => this.onInput(t), greetOnce),
+      new TranslationStream(this.ai, b, this.makeEmit(1), false, (t) => this.onInput(t), greetOnce),
     ];
     await Promise.all(this.streams.map((s) => s.start()));
+  }
+
+  /** Transcript đầu vào -> chốt ngôn ngữ của lượt (1 lần), gia hạn mốc im lặng. */
+  private onInput(text: string): void {
+    if (this.turnLang === null) {
+      this.turnLang = detectLang(text);
+      if (this.holdTimer) clearTimeout(this.holdTimer);
+      this.holdTimer = null;
+      // Nhả audio/chữ đã giữ: chỉ luồng có đích KHÁC tiếng đang nói.
+      for (const p of this.held) {
+        if (this.targets[p.idx] !== this.turnLang) this.out(p.e);
+      }
+      this.held = [];
+    }
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(() => this.resetTurn(), TURN_IDLE_RESET_MS);
+  }
+
+  private resetTurn(): void {
+    this.turnLang = null;
+    this.held = [];
+    if (this.holdTimer) clearTimeout(this.holdTimer);
+    this.holdTimer = null;
+  }
+
+  /** Lọc audio + chữ dịch theo hướng đã khóa; giữ lại nếu chưa biết tiếng. */
+  private makeEmit(idx: number) {
+    return (e: BrainEvent): void => {
+      if (e.type === "interrupted") {
+        this.resetTurn();
+        this.out(e);
+        return;
+      }
+      if (e.type === "audio" || e.type === "text") {
+        if (this.turnLang === null) {
+          this.held.push({ idx, e });
+          if (!this.holdTimer) {
+            // Phòng khi không nhận diện được: nhả hết ra (chấp nhận chồng nhẹ) còn hơn câm.
+            this.holdTimer = setTimeout(() => {
+              for (const p of this.held) this.out(p.e);
+              this.held = [];
+              this.holdTimer = null;
+            }, HOLD_FALLBACK_MS);
+          }
+          return;
+        }
+        if (this.targets[idx] === this.turnLang) return; // bỏ luồng dịch ra đúng tiếng đang nói
+      }
+      this.out(e);
+    };
   }
 
   sendAudio(pcmChunk: Buffer): void {
@@ -196,8 +248,10 @@ export class GeminiLiveBrain implements TranslatorBrain {
   }
 
   async stop(): Promise<void> {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    if (this.holdTimer) clearTimeout(this.holdTimer);
     await Promise.all(this.streams.map((s) => s.stop()));
     this.streams = [];
-    this.inputLang = null;
+    this.resetTurn();
   }
 }
