@@ -141,6 +141,14 @@ class TranslationStream {
 
 /** Nhận diện ngôn ngữ đơn giản theo chữ viết: có chữ Hán -> "zh", còn lại -> "vi". */
 function detectLang(text: string): string {
+  for (const ch of text) {
+    const c = ch.codePointAt(0) ?? 0;
+    // Dải chữ Hán (CJK): 0x3400-0x9FFF, 0xF900-0xFAFF. Chỉ dùng mã, tránh lỗi mã hóa.
+    if ((c >= 0x3400 && c <= 0x9fff) || (c >= 0xf900 && c <= 0xfaff)) return "zh";
+  }
+  return "vi";
+}
+function detectLangLegacy(text: string): string {
   return /[㐀-鿿豈-﫿]/.test(text) ? "zh" : "vi";
 }
 
