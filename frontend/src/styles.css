@@ -1,0 +1,94 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: radial-gradient(circle at 50% 0%, #1e1b4b, #0b0b14 60%);
+  color: #e5e7eb;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+h1 {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  color: #9ca3af;
+  margin-top: 0;
+  font-size: 14px;
+}
+
+.mic {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: none;
+  font-size: 44px;
+  cursor: pointer;
+  margin: 40px 0 24px;
+  background: #6366f1;
+  color: white;
+  transition: transform 0.1s, background 0.2s;
+}
+
+.mic:hover {
+  transform: scale(1.05);
+}
+
+.mic.on {
+  background: #ef4444;
+}
+
+.status {
+  min-height: 24px;
+  color: #c7d2fe;
+  font-size: 15px;
+  margin-bottom: 24px;
+}
+
+.status.warn {
+  color: #fbbf24;
+}
+
+.panes {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pane {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 16px 20px;
+  text-align: left;
+}
+
+.pane-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #818cf8;
+  margin-bottom: 8px;
+}
+
+.pane-body {
+  min-height: 90px;
+  font-size: 20px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.placeholder {
+  color: #6b7280;
+}

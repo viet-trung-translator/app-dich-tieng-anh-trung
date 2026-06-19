@@ -1,0 +1,14 @@
+# Render.com Blueprint - deploy 1 service HTTPS cố định (hỗ trợ WebSocket).
+# Cách dùng: render.com -> New -> Blueprint -> chọn repo này -> điền GEMINI_API_KEY.
+services:
+  - type: web
+    name: dich-tieng-anh-trung
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false # nhập thủ công khi tạo (bí mật, không lưu vào repo)
+      - key: GEMINI_MODEL
+        value: gemini-3.5-live-translate-preview
