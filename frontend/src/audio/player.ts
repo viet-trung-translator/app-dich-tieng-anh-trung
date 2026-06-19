@@ -26,7 +26,10 @@ export class StreamPlayer {
     src.connect(this.ctx.destination);
 
     const now = this.ctx.currentTime;
-    if (this.nextTime < now) this.nextTime = now;
+    // Khi bắt đầu 1 tràng mới (hàng phát đã cạn) thì lùi lịch thêm 1 lớp đệm
+    // ~150ms để mạng trễ vặt không gây hụt tiếng (chống giật). Trong cùng tràng
+    // thì nối liền nên không cộng dồn độ trễ.
+    if (this.nextTime < now) this.nextTime = now + 0.15;
     src.start(this.nextTime);
     this.nextTime += buffer.duration;
   }

@@ -132,10 +132,15 @@ class TranslationStream {
   }
 }
 
+const AUDIO_OWNER_RELEASE_MS = 1000;
+
 export class GeminiLiveBrain implements TranslatorBrain {
   private ai: GoogleGenAI;
   private streams: TranslationStream[] = [];
   private greeted = false;
+  // Mỗi lượt chỉ cho 1 luồng phát audio -> tránh 2 giọng chồng nhau gây "giật lác".
+  private audioOwner: number | null = null;
+  private audioOwnerTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
@@ -157,11 +162,26 @@ export class GeminiLiveBrain implements TranslatorBrain {
       }
     };
 
+    // Lọc audio theo "chủ sở hữu lượt": luồng đầu tiên phát audio giữ quyền, audio
+    // luồng kia bị bỏ; im ~1s thì nhả quyền cho lượt sau (có thể là chiều ngược lại).
+    const makeEmit = (idx: number) => (e: BrainEvent): void => {
+      if (e.type === "interrupted") {
+        this.audioOwner = null;
+        if (this.audioOwnerTimer) clearTimeout(this.audioOwnerTimer);
+      } else if (e.type === "audio") {
+        if (this.audioOwner === null) this.audioOwner = idx;
+        if (this.audioOwner !== idx) return; // bỏ audio luồng không sở hữu
+        if (this.audioOwnerTimer) clearTimeout(this.audioOwnerTimer);
+        this.audioOwnerTimer = setTimeout(() => (this.audioOwner = null), AUDIO_OWNER_RELEASE_MS);
+      }
+      onEvent(e);
+    };
+
     const [a, b] = config.languages;
     // 2 luồng ngược chiều -> dịch 2 chiều thật. Chỉ luồng A phát transcript gốc.
     this.streams = [
-      new TranslationStream(this.ai, a, onEvent, true, greetOnce),
-      new TranslationStream(this.ai, b, onEvent, false, greetOnce),
+      new TranslationStream(this.ai, a, makeEmit(0), true, greetOnce),
+      new TranslationStream(this.ai, b, makeEmit(1), false, greetOnce),
     ];
     await Promise.all(this.streams.map((s) => s.start()));
   }
@@ -171,6 +191,8 @@ export class GeminiLiveBrain implements TranslatorBrain {
   }
 
   async stop(): Promise<void> {
+    if (this.audioOwnerTimer) clearTimeout(this.audioOwnerTimer);
+    this.audioOwner = null;
     await Promise.all(this.streams.map((s) => s.stop()));
     this.streams = [];
   }
