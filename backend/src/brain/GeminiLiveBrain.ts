@@ -6,12 +6,15 @@ import type { BrainEvent, TranslatorBrain } from "./TranslatorBrain.js";
 /**
  * Dịch 2 chiều thật giữa 2 ngôn ngữ bằng Gemini 3.5 Live Translate.
  *
- * Model chỉ nhận 1 ngôn ngữ ĐÍCH (translationConfig.targetLanguageCode) và sẽ
- * IM LẶNG khi input đã là tiếng đích (echoTargetLanguage=false). Vì vậy để dịch
- * 2 chiều giữa A và B, ta chạy 2 LUỒNG song song, feed cùng audio:
- *   - Luồng đích A: nghe B -> ra A; nghe A -> im.
- *   - Luồng đích B: nghe A -> ra B; nghe B -> im.
- * Mỗi câu chỉ đúng 1 luồng lên tiếng -> không trùng.
+ * Model chỉ nhận 1 ngôn ngữ ĐÍCH (translationConfig.targetLanguageCode). Để dịch
+ * 2 chiều A<->B ta chạy 2 LUỒNG song song (đích A và đích B), feed cùng audio.
+ *
+ * QUAN TRỌNG: thực tế cả 2 luồng đều có thể phát audio (echoTargetLanguage không
+ * chặn triệt để), nên KHÔNG dựa vào nó. Thay vào đó, ta tự NHẬN DIỆN ngôn ngữ đang
+ * nói (chữ Hán -> "zh", còn lại -> "vi") từ transcript đầu vào, rồi CHỈ phát luồng
+ * có ngôn ngữ đích KHÁC với tiếng đang nói:
+ *   - Nói Trung (zh) -> chỉ phát luồng đích vi (ra tiếng Việt).
+ *   - Nói Việt (vi) -> chỉ phát luồng đích zh (ra tiếng Trung).
  *
  * Mỗi luồng tự "seamless rollover" trước mốc 15 phút để chạy liên tục.
  */
@@ -29,6 +32,7 @@ class TranslationStream {
     private targetLang: string,
     private emit: (e: BrainEvent) => void,
     private emitSource: boolean, // chỉ 1 luồng phát transcript câu gốc (tránh trùng)
+    private onInput: (text: string) => void, // mọi luồng báo transcript đầu vào để nhận diện ngôn ngữ
     private onFirstOpen: () => void,
   ) {}
 
@@ -45,7 +49,7 @@ class TranslationStream {
         inputAudioTranscription: {},
         translationConfig: {
           targetLanguageCode: this.targetLang,
-          echoTargetLanguage: false, // im lặng khi input đã là tiếng đích
+          echoTargetLanguage: false,
         },
       },
       callbacks: {
@@ -92,12 +96,15 @@ class TranslationStream {
 
     if (sc.interrupted) this.emit({ type: "interrupted" });
 
-    if (this.emitSource && sc.inputTranscription?.text) {
-      this.emit({
-        type: "source",
-        text: sc.inputTranscription.text,
-        final: Boolean(sc.turnComplete),
-      });
+    if (sc.inputTranscription?.text) {
+      this.onInput(sc.inputTranscription.text); // nhận diện ngôn ngữ (mọi luồng)
+      if (this.emitSource) {
+        this.emit({
+          type: "source",
+          text: sc.inputTranscription.text,
+          final: Boolean(sc.turnComplete),
+        });
+      }
     }
 
     if (sc.outputTranscription?.text) {
@@ -132,15 +139,16 @@ class TranslationStream {
   }
 }
 
-const AUDIO_OWNER_RELEASE_MS = 1000;
+/** Nhận diện ngôn ngữ đơn giản theo chữ viết: có chữ Hán -> "zh", còn lại -> "vi". */
+function detectLang(text: string): string {
+  return /[㐀-鿿豈-﫿]/.test(text) ? "zh" : "vi";
+}
 
 export class GeminiLiveBrain implements TranslatorBrain {
   private ai: GoogleGenAI;
   private streams: TranslationStream[] = [];
   private greeted = false;
-  // Mỗi lượt chỉ cho 1 luồng phát audio -> tránh 2 giọng chồng nhau gây "giật lác".
-  private audioOwner: number | null = null;
-  private audioOwnerTimer: ReturnType<typeof setTimeout> | null = null;
+  private inputLang: string | null = null; // ngôn ngữ đang nói (cập nhật liên tục)
 
   constructor() {
     this.ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
@@ -162,26 +170,23 @@ export class GeminiLiveBrain implements TranslatorBrain {
       }
     };
 
-    // Lọc audio theo "chủ sở hữu lượt": luồng đầu tiên phát audio giữ quyền, audio
-    // luồng kia bị bỏ; im ~1s thì nhả quyền cho lượt sau (có thể là chiều ngược lại).
-    const makeEmit = (idx: number) => (e: BrainEvent): void => {
-      if (e.type === "interrupted") {
-        this.audioOwner = null;
-        if (this.audioOwnerTimer) clearTimeout(this.audioOwnerTimer);
-      } else if (e.type === "audio") {
-        if (this.audioOwner === null) this.audioOwner = idx;
-        if (this.audioOwner !== idx) return; // bỏ audio luồng không sở hữu
-        if (this.audioOwnerTimer) clearTimeout(this.audioOwnerTimer);
-        this.audioOwnerTimer = setTimeout(() => (this.audioOwner = null), AUDIO_OWNER_RELEASE_MS);
-      }
-      onEvent(e);
+    const onInput = (text: string) => {
+      this.inputLang = detectLang(text);
     };
 
     const [a, b] = config.languages;
-    // 2 luồng ngược chiều -> dịch 2 chiều thật. Chỉ luồng A phát transcript gốc.
+    const targets = [a, b];
+
+    // CHỈ phát luồng có đích KHÁC tiếng đang nói (luồng dịch ra đúng tiếng đang nói
+    // là echo/vô nghĩa -> bỏ). Nhờ vậy nói Trung ra Việt, nói Việt ra Trung.
+    const makeEmit = (idx: number) => (e: BrainEvent): void => {
+      if (e.type === "audio" && this.inputLang && targets[idx] === this.inputLang) return;
+      onEvent(e);
+    };
+
     this.streams = [
-      new TranslationStream(this.ai, a, makeEmit(0), true, greetOnce),
-      new TranslationStream(this.ai, b, makeEmit(1), false, greetOnce),
+      new TranslationStream(this.ai, a, makeEmit(0), true, onInput, greetOnce),
+      new TranslationStream(this.ai, b, makeEmit(1), false, onInput, greetOnce),
     ];
     await Promise.all(this.streams.map((s) => s.start()));
   }
@@ -191,9 +196,8 @@ export class GeminiLiveBrain implements TranslatorBrain {
   }
 
   async stop(): Promise<void> {
-    if (this.audioOwnerTimer) clearTimeout(this.audioOwnerTimer);
-    this.audioOwner = null;
     await Promise.all(this.streams.map((s) => s.stop()));
     this.streams = [];
+    this.inputLang = null;
   }
 }
