@@ -144,23 +144,16 @@ function detectLang(text: string): string {
   return /[㐀-鿿豈-﫿]/.test(text) ? "zh" : "vi";
 }
 
-// Sau mốc im lặng này (ms) thì mở khóa ngôn ngữ -> lượt sau nhận diện lại từ đầu.
-const TURN_IDLE_RESET_MS = 1000;
-// Nếu giữ audio mà mãi không nhận diện được tiếng -> vẫn nhả ra để không bị câm.
-const HOLD_FALLBACK_MS = 700;
-
 export class GeminiLiveBrain implements TranslatorBrain {
   private ai: GoogleGenAI;
   private streams: TranslationStream[] = [];
   private greeted = false;
 
-  // Khóa ngôn ngữ theo lượt: chốt 1 lần đầu lượt, không lật giữa chừng.
-  private turnLang: string | null = null;
-  private held: { idx: number; e: BrainEvent }[] = [];
-  private idleTimer: ReturnType<typeof setTimeout> | null = null;
-  private holdTimer: ReturnType<typeof setTimeout> | null = null;
   private targets: string[] = [];
   private out: (e: BrainEvent) => void = () => {};
+  // LÚC NÀO CŨNG chỉ 1 luồng được phát -> không bao giờ chồng tiếng/hỗn loạn.
+  // Chuyển luồng theo ngôn ngữ nhận diện từ transcript đầu vào.
+  private activeIdx = 0;
 
   constructor() {
     this.ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
@@ -193,52 +186,16 @@ export class GeminiLiveBrain implements TranslatorBrain {
     await Promise.all(this.streams.map((s) => s.start()));
   }
 
-  /** Transcript đầu vào -> chốt ngôn ngữ của lượt (1 lần), gia hạn mốc im lặng. */
+  /** Transcript đầu vào -> chọn luồng có đích KHÁC tiếng đang nói làm luồng phát. */
   private onInput(text: string): void {
-    if (this.turnLang === null) {
-      this.turnLang = detectLang(text);
-      if (this.holdTimer) clearTimeout(this.holdTimer);
-      this.holdTimer = null;
-      // Nhả audio/chữ đã giữ: chỉ luồng có đích KHÁC tiếng đang nói.
-      for (const p of this.held) {
-        if (this.targets[p.idx] !== this.turnLang) this.out(p.e);
-      }
-      this.held = [];
-    }
-    if (this.idleTimer) clearTimeout(this.idleTimer);
-    this.idleTimer = setTimeout(() => this.resetTurn(), TURN_IDLE_RESET_MS);
+    const lang = detectLang(text);
+    this.activeIdx = this.targets[0] !== lang ? 0 : 1;
   }
 
-  private resetTurn(): void {
-    this.turnLang = null;
-    this.held = [];
-    if (this.holdTimer) clearTimeout(this.holdTimer);
-    this.holdTimer = null;
-  }
-
-  /** Lọc audio + chữ dịch theo hướng đã khóa; giữ lại nếu chưa biết tiếng. */
+  /** Chỉ luồng đang active mới được phát audio + chữ dịch. */
   private makeEmit(idx: number) {
     return (e: BrainEvent): void => {
-      if (e.type === "interrupted") {
-        this.resetTurn();
-        this.out(e);
-        return;
-      }
-      if (e.type === "audio" || e.type === "text") {
-        if (this.turnLang === null) {
-          this.held.push({ idx, e });
-          if (!this.holdTimer) {
-            // Phòng khi không nhận diện được: nhả hết ra (chấp nhận chồng nhẹ) còn hơn câm.
-            this.holdTimer = setTimeout(() => {
-              for (const p of this.held) this.out(p.e);
-              this.held = [];
-              this.holdTimer = null;
-            }, HOLD_FALLBACK_MS);
-          }
-          return;
-        }
-        if (this.targets[idx] === this.turnLang) return; // bỏ luồng dịch ra đúng tiếng đang nói
-      }
+      if ((e.type === "audio" || e.type === "text") && idx !== this.activeIdx) return;
       this.out(e);
     };
   }
@@ -248,10 +205,7 @@ export class GeminiLiveBrain implements TranslatorBrain {
   }
 
   async stop(): Promise<void> {
-    if (this.idleTimer) clearTimeout(this.idleTimer);
-    if (this.holdTimer) clearTimeout(this.holdTimer);
     await Promise.all(this.streams.map((s) => s.stop()));
     this.streams = [];
-    this.resetTurn();
   }
 }
