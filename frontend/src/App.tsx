@@ -67,7 +67,7 @@ export function App() {
         break;
       case "open":
         everOpenRef.current = true;
-        setStatusMsg("Đang nghe... (nói tiếng Trung hoặc tiếng Anh)");
+        setStatusMsg("Đang nghe... (nói tiếng Trung hoặc tiếng Việt)");
         break;
       case "reconnecting":
         setStatusMsg(everOpenRef.current ? "Mất kết nối — đang kết nối lại..." : COLD_START);
@@ -126,7 +126,7 @@ export function App() {
 
   return (
     <div className="app">
-      <h1>Phiên dịch Trung ↔ Anh</h1>
+      <h1>Phiên dịch Trung ↔ Việt</h1>
       <p className="subtitle">Gemini 3.5 Live Translate · dịch giọng nói thời gian thực</p>
 
       <button

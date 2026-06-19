@@ -4,68 +4,57 @@ import { config } from "../config.js";
 import type { BrainEvent, TranslatorBrain } from "./TranslatorBrain.js";
 
 /**
- * Nối tới Gemini 3.5 Live Translate qua Live API (WebSocket).
+ * Dịch 2 chiều thật giữa 2 ngôn ngữ bằng Gemini 3.5 Live Translate.
  *
- * Model tự nhận diện ngôn ngữ và dịch 2 chiều (Trung <-> Anh), trả về
- * audio (giọng dịch, 24kHz PCM) + transcript (chữ chạy).
- * Input audio yêu cầu: PCM 16kHz, 16-bit little-endian, mono.
+ * Model chỉ nhận 1 ngôn ngữ ĐÍCH (translationConfig.targetLanguageCode) và sẽ
+ * IM LẶNG khi input đã là tiếng đích (echoTargetLanguage=false). Vì vậy để dịch
+ * 2 chiều giữa A và B, ta chạy 2 LUỒNG song song, feed cùng audio:
+ *   - Luồng đích A: nghe B -> ra A; nghe A -> im.
+ *   - Luồng đích B: nghe A -> ra B; nghe B -> im.
+ * Mỗi câu chỉ đúng 1 luồng lên tiếng -> không trùng.
  *
- * SEAMLESS SESSION ROLLOVER:
- *   Phiên Gemini audio giới hạn ~15 phút. Trước mốc đó (config.sessionRolloverMs)
- *   ta mở 1 phiên MỚI, chuyển audio sang phiên mới, và giữ phiên cũ thêm vài giây
- *   để nó phát nốt câu đang dịch rồi mới đóng -> người dùng không thấy gián đoạn.
- *   Nhờ vậy app chạy "liên tục cho tới khi tắt".
+ * Mỗi luồng tự "seamless rollover" trước mốc 15 phút để chạy liên tục.
  */
 const OLD_SESSION_GRACE_MS = 3000;
 
-export class GeminiLiveBrain implements TranslatorBrain {
-  private ai: GoogleGenAI;
+/** Một luồng dịch: cố định 1 ngôn ngữ đích, tự rollover phiên. */
+class TranslationStream {
+  private sessions = new Set<Session>();
   private current: Session | null = null;
-  private sessions = new Set<Session>(); // các phiên đang còn forward sự kiện
-  private onEvent: ((e: BrainEvent) => void) | null = null;
   private rolloverTimer: ReturnType<typeof setTimeout> | null = null;
-  private greeted = false;
   private stopped = false;
 
-  constructor() {
-    this.ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
+  constructor(
+    private ai: GoogleGenAI,
+    private targetLang: string,
+    private emit: (e: BrainEvent) => void,
+    private emitSource: boolean, // chỉ 1 luồng phát transcript câu gốc (tránh trùng)
+    private onFirstOpen: () => void,
+  ) {}
+
+  async start(): Promise<void> {
+    await this.open();
   }
 
-  async start(onEvent: (e: BrainEvent) => void): Promise<void> {
-    this.onEvent = onEvent;
-    if (!config.geminiApiKey) {
-      onEvent({
-        type: "error",
-        message: "Thiếu GEMINI_API_KEY ở backend. Hãy điền vào file .env rồi khởi động lại.",
-      });
-      return;
-    }
-    await this.openSession();
-  }
-
-  /** Mở 1 phiên Gemile Live mới, chuyển 'current' sang nó, lên lịch rollover kế tiếp. */
-  private async openSession(): Promise<void> {
-    const emit = (e: BrainEvent) => this.onEvent?.(e);
-
+  private async open(): Promise<void> {
     const session = await this.ai.live.connect({
       model: config.geminiModel,
       config: {
         responseModalities: [Modality.AUDIO],
-        outputAudioTranscription: {}, // transcript bản dịch -> chữ chạy
-        inputAudioTranscription: {}, // (tuỳ chọn) transcript câu gốc
+        outputAudioTranscription: {},
+        inputAudioTranscription: {},
+        translationConfig: {
+          targetLanguageCode: this.targetLang,
+          echoTargetLanguage: false, // im lặng khi input đã là tiếng đích
+        },
       },
       callbacks: {
-        onopen: () => {
-          if (!this.greeted) {
-            this.greeted = true;
-            emit({ type: "status", message: "Đã kết nối Gemini Live." });
-          }
-        },
-        // Chỉ forward sự kiện từ phiên còn nằm trong set (current + phiên cũ đang drain).
+        onopen: () => this.onFirstOpen(),
         onmessage: (msg: any) => {
-          if (this.sessions.has(session)) this.handleMessage(msg, emit);
+          if (this.sessions.has(session)) this.handle(msg);
         },
-        onerror: (e: any) => emit({ type: "error", message: `Gemini error: ${e?.message ?? e}` }),
+        onerror: (e: any) =>
+          this.emit({ type: "error", message: `Gemini error: ${e?.message ?? e}` }),
         onclose: () => this.sessions.delete(session),
       },
     });
@@ -74,7 +63,6 @@ export class GeminiLiveBrain implements TranslatorBrain {
     this.sessions.add(session);
     this.current = session;
 
-    // Giữ phiên cũ thêm vài giây để phát nốt rồi đóng (tránh cắt giữa câu).
     if (old) {
       setTimeout(() => {
         this.sessions.delete(old);
@@ -85,7 +73,6 @@ export class GeminiLiveBrain implements TranslatorBrain {
         }
       }, OLD_SESSION_GRACE_MS);
     }
-
     this.scheduleRollover();
   }
 
@@ -93,40 +80,40 @@ export class GeminiLiveBrain implements TranslatorBrain {
     if (this.rolloverTimer) clearTimeout(this.rolloverTimer);
     this.rolloverTimer = setTimeout(() => {
       if (this.stopped) return;
-      this.onEvent?.({ type: "status", message: "Đang làm mới phiên (nền)..." });
-      this.openSession().catch((err) =>
-        this.onEvent?.({ type: "error", message: `Rollover lỗi: ${err?.message ?? err}` }),
+      this.open().catch((err) =>
+        this.emit({ type: "error", message: `Rollover lỗi: ${err?.message ?? err}` }),
       );
     }, config.sessionRolloverMs);
   }
 
-  private handleMessage(msg: any, emit: (e: BrainEvent) => void): void {
+  private handle(msg: any): void {
     const sc = msg?.serverContent;
     if (!sc) return;
 
-    if (sc.interrupted) emit({ type: "interrupted" });
+    if (sc.interrupted) this.emit({ type: "interrupted" });
 
-    // Transcript câu gốc (người nói) -> hiển thị song ngữ.
-    if (sc.inputTranscription?.text) {
-      emit({ type: "source", text: sc.inputTranscription.text, final: Boolean(sc.turnComplete) });
+    if (this.emitSource && sc.inputTranscription?.text) {
+      this.emit({
+        type: "source",
+        text: sc.inputTranscription.text,
+        final: Boolean(sc.turnComplete),
+      });
     }
 
-    // Transcript bản dịch.
     if (sc.outputTranscription?.text) {
-      emit({ type: "text", text: sc.outputTranscription.text, final: Boolean(sc.turnComplete) });
+      this.emit({ type: "text", text: sc.outputTranscription.text, final: Boolean(sc.turnComplete) });
     }
 
     const parts = sc.modelTurn?.parts ?? [];
     for (const part of parts) {
       const data = part?.inlineData?.data;
-      if (data) emit({ type: "audio", dataBase64: data, sampleRate: 24000 });
+      if (data) this.emit({ type: "audio", dataBase64: data, sampleRate: 24000 });
     }
   }
 
-  sendAudio(pcmChunk: Buffer): void {
-    if (!this.current) return;
-    this.current.sendRealtimeInput({
-      audio: { data: pcmChunk.toString("base64"), mimeType: "audio/pcm;rate=16000" },
+  sendAudio(chunk: Buffer): void {
+    this.current?.sendRealtimeInput({
+      audio: { data: chunk.toString("base64"), mimeType: "audio/pcm;rate=16000" },
     });
   }
 
@@ -142,6 +129,49 @@ export class GeminiLiveBrain implements TranslatorBrain {
     }
     this.sessions.clear();
     this.current = null;
-    this.onEvent = null;
+  }
+}
+
+export class GeminiLiveBrain implements TranslatorBrain {
+  private ai: GoogleGenAI;
+  private streams: TranslationStream[] = [];
+  private greeted = false;
+
+  constructor() {
+    this.ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
+  }
+
+  async start(onEvent: (e: BrainEvent) => void): Promise<void> {
+    if (!config.geminiApiKey) {
+      onEvent({
+        type: "error",
+        message: "Thiếu GEMINI_API_KEY ở backend. Hãy điền vào file .env rồi khởi động lại.",
+      });
+      return;
+    }
+
+    const greetOnce = () => {
+      if (!this.greeted) {
+        this.greeted = true;
+        onEvent({ type: "status", message: "Đã kết nối Gemini Live." });
+      }
+    };
+
+    const [a, b] = config.languages;
+    // 2 luồng ngược chiều -> dịch 2 chiều thật. Chỉ luồng A phát transcript gốc.
+    this.streams = [
+      new TranslationStream(this.ai, a, onEvent, true, greetOnce),
+      new TranslationStream(this.ai, b, onEvent, false, greetOnce),
+    ];
+    await Promise.all(this.streams.map((s) => s.start()));
+  }
+
+  sendAudio(pcmChunk: Buffer): void {
+    for (const s of this.streams) s.sendAudio(pcmChunk);
+  }
+
+  async stop(): Promise<void> {
+    await Promise.all(this.streams.map((s) => s.stop()));
+    this.streams = [];
   }
 }

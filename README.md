@@ -1,11 +1,15 @@
-# App Phiên Dịch Real-time Trung ↔ Anh
+# App Phiên Dịch Real-time Trung ↔ Việt
 
-Web app dịch giọng nói thời gian thực 2 chiều (Trung ↔ Anh) bằng
+Web app dịch giọng nói thời gian thực 2 chiều (Trung ↔ Việt) bằng
 **Gemini 3.5 Live Translate** (`gemini-3.5-live-translate-preview`).
 
 - Bấm 1 nút mic → thu âm liên tục
-- Nghe tiếng Trung → dịch tiếng Anh, nghe tiếng Anh → dịch tiếng Trung (tự nhận diện)
+- Nghe tiếng Trung → dịch tiếng Việt, nghe tiếng Việt → dịch tiếng Trung (tự nhận diện)
 - Chữ chạy liên tục + loa phát giọng dịch liên tục, cho tới khi bấm tắt
+
+> Đổi cặp ngôn ngữ: đặt biến môi trường `LANGUAGE_PAIR` (mặc định `vi,zh`).
+> Cơ chế: chạy 2 luồng Gemini song song (mỗi tiếng 1 ngôn ngữ đích) vì model chỉ
+> nhận 1 ngôn ngữ đích/phiên. **Lưu ý: dùng ~2x lượng API so với 1 chiều.**
 
 Xem [PLAN.md](PLAN.md) để biết kiến trúc & lộ trình.
 
