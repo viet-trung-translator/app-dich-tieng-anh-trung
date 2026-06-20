@@ -7,6 +7,7 @@ const langLabel = (l: string) => (l === "zh" ? "Tiếng Trung" : "Tiếng Việt
 export function Home(props: {
   user: User;
   online: OnlineUser[];
+  connected: boolean;
   onCall: (userId: number) => void;
   onOpenSolo: () => void;
   onOpenAdmin: () => void;
@@ -49,6 +50,12 @@ export function Home(props: {
           </button>
         </div>
       </header>
+
+      {!props.connected && (
+        <div className="status warn" style={{ marginBottom: 12 }}>
+          Đang kết nối máy chủ... (gói free có thể chờ ~50 giây lần đầu)
+        </div>
+      )}
 
       <section className="card">
         <h3>Gọi cho người khác</h3>

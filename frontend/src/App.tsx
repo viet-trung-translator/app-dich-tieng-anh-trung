@@ -15,6 +15,7 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>("home");
   const [online, setOnline] = useState<OnlineUser[]>([]);
+  const [connected, setConnected] = useState(false);
   const [call, setCall] = useState<CallPhase>({ phase: "idle" });
   const [subtitle, setSubtitle] = useState("");
 
@@ -53,6 +54,7 @@ export function App() {
     if (!user) return;
     const sig = new Signaling();
     sig.onOnline = setOnline;
+    sig.onConn = setConnected;
     sig.onCall = (e) => {
       switch (e.type) {
         case "ringing":
@@ -79,6 +81,7 @@ export function App() {
       sig.close();
       sigRef.current = null;
       setOnline([]);
+      setConnected(false);
     };
   }, [user]);
 
@@ -128,6 +131,7 @@ export function App() {
       <Home
         user={user}
         online={online}
+        connected={connected}
         onCall={startCall}
         onOpenSolo={() => setView("solo")}
         onOpenAdmin={() => setView("admin")}
