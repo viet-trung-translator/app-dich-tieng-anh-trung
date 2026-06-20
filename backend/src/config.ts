@@ -9,6 +9,9 @@ export const config = {
   // Cặp ngôn ngữ dịch 2 chiều (BCP-47). Mặc định vi <-> zh (Việt <-> Trung).
   // Mỗi tiếng là 1 ngôn ngữ đích của 1 luồng -> dịch qua lại.
   languages: (process.env.LANGUAGE_PAIR ?? "vi,zh").split(",").map((s) => s.trim()),
+  // Tài khoản + đăng nhập (GĐ gọi điện).
+  databaseUrl: process.env.DATABASE_URL ?? "",
+  jwtSecret: process.env.JWT_SECRET ?? "dev-secret-doi-trong-production",
 };
 
 export function assertConfig(): void {

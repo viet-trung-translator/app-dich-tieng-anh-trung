@@ -7,9 +7,12 @@ export default defineConfig({
     port: 5173,
     host: true, // lắng nghe trên LAN để iPhone / tunnel vào được
     allowedHosts: true, // cho phép domain tunnel (vd *.trycloudflare.com)
-    // Vite proxy WebSocket /translate sang backend -> chỉ cần expose 1 cổng (HTTPS).
+    // Vite proxy sang backend -> chỉ cần expose 1 cổng (HTTPS).
     proxy: {
       "/translate": { target: "ws://localhost:8787", ws: true },
+      "/presence": { target: "ws://localhost:8787", ws: true },
+      "/api": { target: "http://localhost:8787" },
+      "/health": { target: "http://localhost:8787" },
     },
   },
 });

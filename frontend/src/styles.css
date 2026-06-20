@@ -92,3 +92,198 @@ h1 {
 .placeholder {
   color: #6b7280;
 }
+
+/* ===== Tài khoản / gọi điện ===== */
+.center-screen {
+  padding-top: 80px;
+  color: #9ca3af;
+}
+
+.auth {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 56px 24px;
+  text-align: center;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin: 24px 0 16px;
+}
+.tabs button {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: #c7d2fe;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.tabs button.on {
+  background: #6366f1;
+  color: #fff;
+  border-color: #6366f1;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+input,
+select {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e5e7eb;
+  font-size: 16px;
+}
+.lang-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: #9ca3af;
+}
+.primary {
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+.primary:disabled {
+  opacity: 0.6;
+}
+.msg {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #c7d2fe;
+  font-size: 14px;
+}
+
+.home {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 20px 16px 60px;
+}
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.actions {
+  display: flex;
+  gap: 12px;
+}
+.badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #c7d2fe;
+}
+.badge.owner {
+  background: #f59e0b;
+  color: #111;
+}
+.badge.st-pending {
+  background: #fbbf24;
+  color: #111;
+}
+.badge.st-approved {
+  background: #10b981;
+  color: #03281d;
+}
+.badge.st-disabled {
+  background: #ef4444;
+  color: #fff;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.card h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+.search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.search input {
+  flex: 1;
+}
+.user-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #10b981;
+  margin-right: 4px;
+}
+.call {
+  border: none;
+  background: #10b981;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: #818cf8;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+}
+.link-btn.center {
+  display: block;
+  margin: 20px auto 0;
+}
+.admin-actions {
+  display: flex;
+  gap: 6px;
+}
+.admin-actions button {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: #fff;
+}
+.admin-actions .ok {
+  background: #10b981;
+}
+.admin-actions .warn-btn {
+  background: #f59e0b;
+  color: #111;
+}
+.admin-actions .danger {
+  background: #ef4444;
+}

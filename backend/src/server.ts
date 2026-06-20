@@ -7,11 +7,18 @@ import fastifyStatic from "@fastify/static";
 import { config, assertConfig } from "./config.js";
 import { GeminiLiveBrain } from "./brain/GeminiLiveBrain.js";
 import type { BrainEvent } from "./brain/TranslatorBrain.js";
+import { initDb } from "./db.js";
+import { registerRoutes } from "./routes.js";
+import { registerPresence } from "./presence.js";
 
 assertConfig();
 
 const app = Fastify({ logger: true });
 await app.register(websocket);
+
+await initDb();
+registerRoutes(app);
+registerPresence(app);
 
 app.get("/health", async () => ({ ok: true, model: config.geminiModel }));
 
@@ -49,8 +56,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const staticDir = process.env.STATIC_DIR ?? path.resolve(__dirname, "../../frontend/dist");
 if (fs.existsSync(path.join(staticDir, "index.html"))) {
   await app.register(fastifyStatic, { root: staticDir });
-  // SPA fallback: GET không khớp -> trả index.html.
+  // SPA fallback: GET không khớp -> trả index.html (trừ /api -> 404 JSON).
   app.setNotFoundHandler((req, reply) => {
+    if (req.url.startsWith("/api")) return reply.code(404).send({ error: "not found" });
     if (req.method === "GET") return reply.sendFile("index.html");
     return reply.code(404).send({ error: "not found" });
   });

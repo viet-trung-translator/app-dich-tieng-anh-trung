@@ -12,3 +12,7 @@ services:
         sync: false # nhập thủ công khi tạo (bí mật, không lưu vào repo)
       - key: GEMINI_MODEL
         value: gemini-3.5-live-translate-preview
+      - key: DATABASE_URL
+        sync: false # chuỗi kết nối Neon (bí mật)
+      - key: JWT_SECRET
+        generateValue: true # Render tự sinh chuỗi bí mật
