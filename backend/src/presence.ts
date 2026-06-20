@@ -4,12 +4,23 @@ import { verifyRawToken } from "./auth.js";
 
 type Conn = { userId: number; username: string; language: string; socket: any };
 type PeerInfo = { id: number; username: string; language: string };
-type Call = { id: string; callerId: number; calleeId: number; state: "ringing" | "active" };
+export type Call = {
+  id: string;
+  callerId: number;
+  calleeId: number;
+  state: "ringing" | "active";
+  langs: Record<number, string>; // userId -> ngôn ngữ
+};
 
 // Ai đang online + cuộc gọi đang diễn ra.
 const online = new Map<number, Conn>();
 const calls = new Map<string, Call>();
 const userCall = new Map<number, string>(); // userId -> callId (đang bận)
+
+/** Cho module audio cuộc gọi tra cứu cuộc gọi đang hoạt động. */
+export function getCall(callId: string): Call | undefined {
+  return calls.get(callId);
+}
 
 function sendTo(userId: number, obj: unknown): void {
   const c = online.get(userId);
@@ -55,7 +66,13 @@ function handleSignal(self: Conn, msg: any): void {
       if (userCall.has(toId)) return sendTo(me, { type: "unavailable", reason: "busy" });
 
       const callId = randomUUID();
-      calls.set(callId, { id: callId, callerId: me, calleeId: toId, state: "ringing" });
+      calls.set(callId, {
+        id: callId,
+        callerId: me,
+        calleeId: toId,
+        state: "ringing",
+        langs: { [me]: self.language, [toId]: callee.language },
+      });
       userCall.set(me, callId);
       userCall.set(toId, callId);
       sendTo(toId, { type: "incoming", callId, from: peerOf(me) });

@@ -21,7 +21,7 @@ import type { BrainEvent, TranslatorBrain } from "./TranslatorBrain.js";
 const OLD_SESSION_GRACE_MS = 3000;
 
 /** Một luồng dịch: cố định 1 ngôn ngữ đích, tự rollover phiên. */
-class TranslationStream {
+export class TranslationStream {
   private sessions = new Set<Session>();
   private current: Session | null = null;
   private rolloverTimer: ReturnType<typeof setTimeout> | null = null;

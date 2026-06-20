@@ -10,6 +10,7 @@ const langLabel = (l: string) => (l === "zh" ? "Tiếng Trung" : "Tiếng Việt
 
 export function CallOverlay(props: {
   state: CallPhase;
+  subtitle?: string;
   onAccept: () => void;
   onReject: () => void;
   onCancel: () => void;
@@ -31,6 +32,16 @@ export function CallOverlay(props: {
         {s.phase === "outgoing" && <div className="call-status">Đang gọi...</div>}
         {s.phase === "incoming" && <div className="call-status">Cuộc gọi đến</div>}
         {s.phase === "active" && <div className="call-status green">Đang trong cuộc gọi</div>}
+
+        {s.phase === "active" && (
+          <div className="call-subtitle">
+            {props.subtitle?.trim() ? (
+              props.subtitle
+            ) : (
+              <span className="placeholder">Bản dịch lời {who.username} sẽ hiện ở đây...</span>
+            )}
+          </div>
+        )}
 
         <div className="call-actions">
           {s.phase === "outgoing" && (
@@ -55,11 +66,6 @@ export function CallOverlay(props: {
           )}
         </div>
 
-        {s.phase === "active" && (
-          <div className="call-note">
-            (Phần dịch giọng nói real-time sẽ thêm ở giai đoạn kế tiếp.)
-          </div>
-        )}
       </div>
     </div>
   );

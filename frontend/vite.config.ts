@@ -11,6 +11,7 @@ export default defineConfig({
     proxy: {
       "/translate": { target: "ws://localhost:8787", ws: true },
       "/presence": { target: "ws://localhost:8787", ws: true },
+      "/call-media": { target: "ws://localhost:8787", ws: true },
       "/api": { target: "http://localhost:8787" },
       "/health": { target: "http://localhost:8787" },
     },

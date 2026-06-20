@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, getToken, clearToken, type User } from "./api.ts";
 import { Signaling, type OnlineUser, type Peer } from "./signaling.ts";
+import { CallSession } from "./call-session.ts";
 import { Auth } from "./screens/Auth.tsx";
 import { Home } from "./screens/Home.tsx";
 import { Admin } from "./screens/Admin.tsx";
@@ -15,8 +16,25 @@ export function App() {
   const [view, setView] = useState<View>("home");
   const [online, setOnline] = useState<OnlineUser[]>([]);
   const [call, setCall] = useState<CallPhase>({ phase: "idle" });
+  const [subtitle, setSubtitle] = useState("");
 
   const sigRef = useRef<Signaling | null>(null);
+  const callSessRef = useRef<CallSession | null>(null);
+
+  // Khi cuộc gọi sang "active" -> mở phiên audio (thu mic + phát tiếng dịch + chữ).
+  const activeCallId = call.phase === "active" ? call.callId : null;
+  useEffect(() => {
+    if (!activeCallId) return;
+    const cs = new CallSession();
+    cs.onText = (t, final) => setSubtitle((p) => (p + t + (final ? "\n" : "")).slice(-1500));
+    cs.start(activeCallId).catch(() => {});
+    callSessRef.current = cs;
+    return () => {
+      void cs.stop();
+      callSessRef.current = null;
+      setSubtitle("");
+    };
+  }, [activeCallId]);
 
   useEffect(() => {
     if (!getToken()) {
@@ -85,6 +103,7 @@ export function App() {
   const overlay = (
     <CallOverlay
       state={call}
+      subtitle={subtitle}
       onAccept={() => call.phase === "incoming" && sigRef.current?.accept(call.callId)}
       onReject={() => {
         if (call.phase === "incoming") sigRef.current?.reject(call.callId);

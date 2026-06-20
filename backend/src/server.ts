@@ -10,6 +10,7 @@ import type { BrainEvent } from "./brain/TranslatorBrain.js";
 import { initDb } from "./db.js";
 import { registerRoutes } from "./routes.js";
 import { registerPresence } from "./presence.js";
+import { registerCallMedia } from "./call-media.js";
 
 assertConfig();
 
@@ -19,6 +20,7 @@ await app.register(websocket);
 await initDb();
 registerRoutes(app);
 registerPresence(app);
+registerCallMedia(app);
 
 app.get("/health", async () => ({ ok: true, model: config.geminiModel }));
 
