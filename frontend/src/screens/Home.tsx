@@ -1,25 +1,20 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { api, type User } from "../api.ts";
-import { connectPresence, type OnlineUser } from "../presence-client.ts";
+import type { OnlineUser } from "../signaling.ts";
 
 const langLabel = (l: string) => (l === "zh" ? "Tiếng Trung" : "Tiếng Việt");
 
 export function Home(props: {
   user: User;
+  online: OnlineUser[];
+  onCall: (userId: number) => void;
   onOpenSolo: () => void;
   onOpenAdmin: () => void;
   onLogout: () => void;
 }) {
-  const { user } = props;
-  const [online, setOnline] = useState<OnlineUser[]>([]);
+  const { user, online } = props;
   const [q, setQ] = useState("");
   const [results, setResults] = useState<User[]>([]);
-  const closeRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    closeRef.current = connectPresence(setOnline);
-    return () => closeRef.current?.();
-  }, []);
 
   async function doSearch(e: FormEvent) {
     e.preventDefault();
@@ -32,10 +27,7 @@ export function Home(props: {
     }
   }
 
-  // GĐ1 chưa có gọi điện -> nút Gọi tạm khóa.
-  const call = (u: { username: string }) =>
-    alert(`Tính năng gọi sẽ có ở giai đoạn sau. (Sẽ gọi: ${u.username})`);
-
+  const onlineIds = new Set(online.map((u) => u.id));
   const others = online.filter((u) => u.id !== user.id);
 
   return (
@@ -66,16 +58,19 @@ export function Home(props: {
             Tìm
           </button>
         </form>
-        {results.map((u) => (
-          <div key={u.id} className="user-row">
-            <span>
-              {u.username} <small>· {langLabel(u.language)}</small>
-            </span>
-            <button className="call" onClick={() => call(u)}>
-              📞 Gọi
-            </button>
-          </div>
-        ))}
+        {results
+          .filter((u) => u.id !== user.id)
+          .map((u) => (
+            <div key={u.id} className="user-row">
+              <span>
+                {onlineIds.has(u.id) && <span className="dot" />} {u.username}{" "}
+                <small>· {langLabel(u.language)}</small>
+              </span>
+              <button className="call" disabled={!onlineIds.has(u.id)} onClick={() => props.onCall(u.id)}>
+                📞 {onlineIds.has(u.id) ? "Gọi" : "Offline"}
+              </button>
+            </div>
+          ))}
       </section>
 
       <section className="card">
@@ -86,7 +81,7 @@ export function Home(props: {
             <span>
               <span className="dot" /> {u.username} <small>· {langLabel(u.language)}</small>
             </span>
-            <button className="call" onClick={() => call(u)}>
+            <button className="call" onClick={() => props.onCall(u.id)}>
               📞 Gọi
             </button>
           </div>
