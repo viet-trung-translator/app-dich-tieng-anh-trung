@@ -79,8 +79,10 @@ export function registerCallMedia(app: FastifyInstance): void {
       const ps = rooms.get(callId)?.get(peerId);
       if (ps && ps.readyState === ps.OPEN) ps.send(JSON.stringify(e));
     };
-    const instr = domainInstruction(peerLang, call.domain, call.glossary);
-    const translator = new TranslationStream(ai, peerLang, sendToPeer, false, () => {}, () => {}, instr);
+    // Luôn dùng model dịch chuyên dụng (nhanh, dịch liên tục, không tự lặp).
+    // (Model hội thoại + glossary tạm tắt vì không hợp dịch liên tục — để dành nâng cấp sau.)
+    void domainInstruction; // giữ hàm cho tương lai
+    const translator = new TranslationStream(ai, peerLang, sendToPeer, false, () => {}, () => {});
     translator.start().catch((err) => app.log.error(err));
 
     socket.on("message", (data: Buffer, isBinary: boolean) => {

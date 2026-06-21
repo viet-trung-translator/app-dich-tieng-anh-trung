@@ -3,8 +3,6 @@ import { api, type User } from "../api.ts";
 import type { OnlineUser } from "../signaling.ts";
 import { useI18n } from "../i18n.ts";
 
-const DOMAIN_KEYS = ["general", "factory", "medical", "technical", "legal", "business"];
-
 export function Home(props: {
   user: User;
   online: OnlineUser[];
@@ -18,11 +16,9 @@ export function Home(props: {
   const { user, online } = props;
   const [q, setQ] = useState("");
   const [results, setResults] = useState<User[]>([]);
-  const [domain, setDomain] = useState("general");
-  const [glossary, setGlossary] = useState("");
 
   const langLabel = (l: string) => (l === "zh" ? t("chinese") : t("vietnamese"));
-  const startCall = (id: number) => props.onCall(id, domain, glossary.trim() || undefined);
+  const startCall = (id: number) => props.onCall(id);
 
   async function doSearch(e: FormEvent) {
     e.preventDefault();
@@ -63,30 +59,6 @@ export function Home(props: {
           {t("connecting_server")}
         </div>
       )}
-
-      <section className="card">
-        <h3>{t("translate_mode")}</h3>
-        <label className="lang-pick">
-          {t("domain")}
-          <select value={domain} onChange={(e) => setDomain(e.target.value)}>
-            {DOMAIN_KEYS.map((k) => (
-              <option key={k} value={k}>
-                {t("dom_" + k)}
-              </option>
-            ))}
-          </select>
-        </label>
-        {domain !== "general" && (
-          <textarea
-            className="glossary"
-            placeholder={t("glossary_ph")}
-            value={glossary}
-            onChange={(e) => setGlossary(e.target.value)}
-            rows={3}
-          />
-        )}
-        <div className="hint">{domain === "general" ? t("hint_general") : t("hint_domain")}</div>
-      </section>
 
       <section className="card">
         <h3>{t("call_others")}</h3>
