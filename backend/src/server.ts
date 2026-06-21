@@ -57,11 +57,20 @@ app.get("/translate", { websocket: true }, (socket) => {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const staticDir = process.env.STATIC_DIR ?? path.resolve(__dirname, "../../frontend/dist");
 if (fs.existsSync(path.join(staticDir, "index.html"))) {
-  await app.register(fastifyStatic, { root: staticDir });
+  await app.register(fastifyStatic, {
+    root: staticDir,
+    // index.html KHÔNG cache (luôn lấy mới sau deploy); asset có hash thì cache thoải mái.
+    setHeaders: (res: any, p: string) => {
+      if (p.endsWith(".html")) res.setHeader("Cache-Control", "no-cache, must-revalidate");
+    },
+  });
   // SPA fallback: GET không khớp -> trả index.html (trừ /api -> 404 JSON).
   app.setNotFoundHandler((req, reply) => {
     if (req.url.startsWith("/api")) return reply.code(404).send({ error: "not found" });
-    if (req.method === "GET") return reply.sendFile("index.html");
+    if (req.method === "GET") {
+      reply.header("Cache-Control", "no-cache, must-revalidate");
+      return reply.sendFile("index.html");
+    }
     return reply.code(404).send({ error: "not found" });
   });
   app.log.info(`Phục vụ frontend tĩnh từ: ${staticDir}`);
