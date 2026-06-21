@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { api, type User } from "../api.ts";
 import type { OnlineUser } from "../signaling.ts";
 import { useI18n } from "../i18n.ts";
+import { Brand } from "./Logo.tsx";
 
 export function Home(props: {
   user: User;
@@ -36,6 +37,9 @@ export function Home(props: {
 
   return (
     <div className="home">
+      <div className="brand-bar">
+        <Brand size={28} />
+      </div>
       <header className="topbar">
         <div>
           <b>{user.username}</b>

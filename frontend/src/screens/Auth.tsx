@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { api, setToken, type User } from "../api.ts";
 import { useI18n } from "../i18n.ts";
+import { Brand } from "./Logo.tsx";
 
 export function Auth({ onAuthed }: { onAuthed: (u: User) => void }) {
   const { t, lang, setLang } = useI18n();
@@ -43,7 +44,9 @@ export function Auth({ onAuthed }: { onAuthed: (u: User) => void }) {
         </button>
       </div>
 
-      <h1>{t("app_title")}</h1>
+      <div className="brand-hero">
+        <Brand size={56} />
+      </div>
       <p className="subtitle">{t("app_sub")}</p>
 
       <div className="tabs">
