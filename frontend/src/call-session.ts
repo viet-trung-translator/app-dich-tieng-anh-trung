@@ -45,9 +45,9 @@ export class CallSession {
     const rec = new MicRecorder();
     this.rec = rec;
     await rec.start((pcm) => {
-      // Loa ngoài: tạm ngắt mic khi đang phát -> không bao giờ lặp.
-      // Loa trong: mic luôn thu (âm lượng nhỏ nên ít vọng).
-      if (this.mode === "loud" && this.player?.isPlaying()) return;
+      // BÁN SONG CÔNG LUÔN LUÔN: đang phát bản dịch thì KHÔNG thu mic.
+      // Đây là cách duy nhất chống lặp triệt để khi dùng loa (nói theo lượt).
+      if (this.player?.isPlaying()) return;
       if (ws.readyState === WebSocket.OPEN) ws.send(pcm);
     });
   }
