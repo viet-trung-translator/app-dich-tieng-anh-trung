@@ -4,11 +4,19 @@ import type { OnlineUser } from "../signaling.ts";
 
 const langLabel = (l: string) => (l === "zh" ? "Tiếng Trung" : "Tiếng Việt");
 
+const DOMAINS = [
+  { key: "general", label: "Thường (mặc định, nhanh nhất)" },
+  { key: "medical", label: "Y tế" },
+  { key: "technical", label: "Kỹ thuật" },
+  { key: "legal", label: "Pháp lý" },
+  { key: "business", label: "Thương mại" },
+];
+
 export function Home(props: {
   user: User;
   online: OnlineUser[];
   connected: boolean;
-  onCall: (userId: number) => void;
+  onCall: (userId: number, domain?: string, glossary?: string) => void;
   onOpenSolo: () => void;
   onOpenAdmin: () => void;
   onLogout: () => void;
@@ -16,6 +24,10 @@ export function Home(props: {
   const { user, online } = props;
   const [q, setQ] = useState("");
   const [results, setResults] = useState<User[]>([]);
+  const [domain, setDomain] = useState("general");
+  const [glossary, setGlossary] = useState("");
+
+  const startCall = (id: number) => props.onCall(id, domain, glossary.trim() || undefined);
 
   async function doSearch(e: FormEvent) {
     e.preventDefault();
@@ -58,6 +70,34 @@ export function Home(props: {
       )}
 
       <section className="card">
+        <h3>Chế độ dịch</h3>
+        <label className="lang-pick">
+          Lĩnh vực:
+          <select value={domain} onChange={(e) => setDomain(e.target.value)}>
+            {DOMAINS.map((d) => (
+              <option key={d.key} value={d.key}>
+                {d.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {domain !== "general" && (
+          <textarea
+            className="glossary"
+            placeholder="Thuật ngữ riêng (tùy chọn), vd: huyết áp => 血压, nhồi máu cơ tim => 心肌梗死"
+            value={glossary}
+            onChange={(e) => setGlossary(e.target.value)}
+            rows={3}
+          />
+        )}
+        <div className="hint">
+          {domain === "general"
+            ? "Dịch nhanh, giữ ngữ điệu tốt nhất."
+            : "Dùng model hiểu ngữ cảnh chuyên ngành (có thể trễ hơn chút)."}
+        </div>
+      </section>
+
+      <section className="card">
         <h3>Gọi cho người khác</h3>
         <form onSubmit={doSearch} className="search">
           <input placeholder="Tìm theo tên..." value={q} onChange={(e) => setQ(e.target.value)} />
@@ -73,7 +113,7 @@ export function Home(props: {
                 {onlineIds.has(u.id) && <span className="dot" />} {u.username}{" "}
                 <small>· {langLabel(u.language)}</small>
               </span>
-              <button className="call" disabled={!onlineIds.has(u.id)} onClick={() => props.onCall(u.id)}>
+              <button className="call" disabled={!onlineIds.has(u.id)} onClick={() => startCall(u.id)}>
                 📞 {onlineIds.has(u.id) ? "Gọi" : "Offline"}
               </button>
             </div>
@@ -88,7 +128,7 @@ export function Home(props: {
             <span>
               <span className="dot" /> {u.username} <small>· {langLabel(u.language)}</small>
             </span>
-            <button className="call" onClick={() => props.onCall(u.id)}>
+            <button className="call" onClick={() => startCall(u.id)}>
               📞 Gọi
             </button>
           </div>

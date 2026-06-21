@@ -34,6 +34,7 @@ export class TranslationStream {
     private emitSource: boolean, // chỉ 1 luồng phát transcript câu gốc (tránh trùng)
     private onInput: (text: string) => void, // mọi luồng báo transcript đầu vào để nhận diện ngôn ngữ
     private onFirstOpen: () => void,
+    private domainInstruction?: string, // có -> dùng model đa năng + chỉ thị (chế độ chuyên ngành)
   ) {}
 
   async start(): Promise<void> {
@@ -41,17 +42,24 @@ export class TranslationStream {
   }
 
   private async open(): Promise<void> {
+    // Chế độ chuyên ngành: model đa năng + systemInstruction (glossary/lĩnh vực).
+    // Mặc định: model Live Translate nhanh + translationConfig.
+    const liveConfig: any = this.domainInstruction
+      ? {
+          responseModalities: [Modality.AUDIO],
+          outputAudioTranscription: {},
+          inputAudioTranscription: {},
+          systemInstruction: { parts: [{ text: this.domainInstruction }] },
+        }
+      : {
+          responseModalities: [Modality.AUDIO],
+          outputAudioTranscription: {},
+          inputAudioTranscription: {},
+          translationConfig: { targetLanguageCode: this.targetLang, echoTargetLanguage: false },
+        };
     const session = await this.ai.live.connect({
-      model: config.geminiModel,
-      config: {
-        responseModalities: [Modality.AUDIO],
-        outputAudioTranscription: {},
-        inputAudioTranscription: {},
-        translationConfig: {
-          targetLanguageCode: this.targetLang,
-          echoTargetLanguage: false,
-        },
-      },
+      model: this.domainInstruction ? config.domainModel : config.geminiModel,
+      config: liveConfig,
       callbacks: {
         onopen: () => this.onFirstOpen(),
         onmessage: (msg: any) => {

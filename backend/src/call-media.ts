@@ -11,6 +11,20 @@ const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
 // callId -> (userId -> media socket). Dùng để gửi audio/chữ đã dịch sang người nghe.
 const rooms = new Map<string, Map<number, any>>();
 
+const langName = (l: string) => (l === "zh" ? "Chinese (Mandarin)" : l === "vi" ? "Vietnamese" : l);
+
+/** Chỉ thị cho model đa năng ở chế độ chuyên ngành (dịch sang targetLang + glossary). */
+function domainInstruction(targetLang: string, domain?: string, glossary?: string): string | undefined {
+  const hasDomain = domain && domain !== "general";
+  if (!hasDomain && !glossary) return undefined; // không bật chế độ chuyên ngành
+  let s =
+    `You are a professional real-time simultaneous interpreter. Translate everything the speaker says into ${langName(targetLang)}. ` +
+    `Preserve the speaker's tone, emotion and intent. Output ONLY the spoken translation in ${langName(targetLang)} — no explanations, no extra words.`;
+  if (hasDomain) s += ` The conversation is in the "${domain}" domain; use correct, precise ${domain} terminology.`;
+  if (glossary) s += ` Use this glossary exactly when relevant: ${glossary}.`;
+  return s;
+}
+
 /**
  * Kênh audio cuộc gọi. Mỗi client:
  *  - GỬI: audio mic (PCM 16kHz, binary).
@@ -46,7 +60,8 @@ export function registerCallMedia(app: FastifyInstance): void {
       const ps = rooms.get(callId)?.get(peerId);
       if (ps && ps.readyState === ps.OPEN) ps.send(JSON.stringify(e));
     };
-    const translator = new TranslationStream(ai, peerLang, sendToPeer, false, () => {}, () => {});
+    const instr = domainInstruction(peerLang, call.domain, call.glossary);
+    const translator = new TranslationStream(ai, peerLang, sendToPeer, false, () => {}, () => {}, instr);
     translator.start().catch((err) => app.log.error(err));
 
     socket.on("message", (data: Buffer, isBinary: boolean) => {

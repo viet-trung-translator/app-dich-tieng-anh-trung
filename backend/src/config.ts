@@ -3,6 +3,8 @@ import "dotenv/config";
 export const config = {
   geminiApiKey: process.env.GEMINI_API_KEY ?? "",
   geminiModel: process.env.GEMINI_MODEL ?? "gemini-3.5-live-translate-preview",
+  // Model đa năng cho "chế độ chuyên ngành" (nhận systemInstruction + glossary).
+  domainModel: process.env.DOMAIN_MODEL ?? "gemini-live-2.5-flash-native-audio",
   port: Number(process.env.PORT ?? 8787),
   // Phiên Gemini audio giới hạn ~15 phút. Mở phiên mới trước mốc này để chạy liên tục.
   sessionRolloverMs: Number(process.env.SESSION_ROLLOVER_MS ?? 14 * 60 * 1000),

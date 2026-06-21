@@ -85,11 +85,11 @@ export function App() {
     };
   }, [user]);
 
-  function startCall(userId: number) {
+  function startCall(userId: number, domain?: string, glossary?: string) {
     const peer = online.find((u) => u.id === userId) as Peer | undefined;
     if (!peer) return;
     setCall({ phase: "outgoing", callId: null, to: peer });
-    sigRef.current?.call(userId);
+    sigRef.current?.call(userId, domain, glossary);
   }
 
   function logout() {

@@ -60,8 +60,8 @@ export class Signaling {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(obj));
   }
 
-  call(toUserId: number) {
-    this.send({ type: "call", toUserId });
+  call(toUserId: number, domain?: string, glossary?: string) {
+    this.send({ type: "call", toUserId, domain, glossary });
   }
   accept(callId: string) {
     this.send({ type: "accept", callId });

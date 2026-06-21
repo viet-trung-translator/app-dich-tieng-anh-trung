@@ -10,6 +10,8 @@ export type Call = {
   calleeId: number;
   state: "ringing" | "active";
   langs: Record<number, string>; // userId -> ngôn ngữ
+  domain?: string; // lĩnh vực chuyên ngành (medical/technical/legal/business/general)
+  glossary?: string; // bảng thuật ngữ riêng (tùy chọn)
 };
 
 // Ai đang online + cuộc gọi đang diễn ra.
@@ -72,6 +74,8 @@ function handleSignal(self: Conn, msg: any): void {
         calleeId: toId,
         state: "ringing",
         langs: { [me]: self.language, [toId]: callee.language },
+        domain: typeof msg.domain === "string" ? msg.domain : undefined,
+        glossary: typeof msg.glossary === "string" ? msg.glossary.slice(0, 2000) : undefined,
       });
       userCall.set(me, callId);
       userCall.set(toId, callId);
