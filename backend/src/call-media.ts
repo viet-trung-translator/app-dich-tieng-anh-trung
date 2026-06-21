@@ -73,16 +73,20 @@ export function registerCallMedia(app: FastifyInstance): void {
     }
     room.set(me, socket);
 
-    // Lời tôi -> dịch sang tiếng người nghe -> gửi audio/chữ sang socket người nghe.
-    const sendToPeer = (e: BrainEvent) => {
-      if (e.type !== "audio" && e.type !== "text" && e.type !== "interrupted") return;
-      const ps = rooms.get(callId)?.get(peerId);
+    const sendTo = (uid: number, e: BrainEvent) => {
+      const ps = rooms.get(callId)?.get(uid);
       if (ps && ps.readyState === ps.OPEN) ps.send(JSON.stringify(e));
     };
-    // Luôn dùng model dịch chuyên dụng (nhanh, dịch liên tục, không tự lặp).
-    // (Model hội thoại + glossary tạm tắt vì không hợp dịch liên tục — để dành nâng cấp sau.)
+    // Lời TÔI nói:
+    //  - "source" (câu gốc) -> gửi VỀ CHO TÔI (màn hình tôi thấy "mình vừa nói gì")
+    //  - "text"/"audio"/"interrupted" (bản dịch) -> gửi SANG NGƯỜI NGHE
+    const onEvent = (e: BrainEvent) => {
+      if (e.type === "source") sendTo(me, e);
+      else if (e.type === "text" || e.type === "audio" || e.type === "interrupted") sendTo(peerId, e);
+    };
+    // Model dịch chuyên dụng (nhanh, liên tục, không tự lặp). emitSource=true để có câu gốc.
     void domainInstruction; // giữ hàm cho tương lai
-    const translator = new TranslationStream(ai, peerLang, sendToPeer, false, () => {}, () => {});
+    const translator = new TranslationStream(ai, peerLang, onEvent, true, () => {}, () => {});
     translator.start().catch((err) => app.log.error(err));
 
     socket.on("message", (data: Buffer, isBinary: boolean) => {

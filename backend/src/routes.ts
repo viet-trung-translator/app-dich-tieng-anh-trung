@@ -92,6 +92,21 @@ export function registerRoutes(app: FastifyInstance): void {
     return reply.send({ users: rows.map(pub) });
   });
 
+  // ----- Hay liên lạc (xếp theo số lần gọi + gần đây), gồm cả người offline -----
+  app.get("/api/contacts", async (req, reply) => {
+    const p = requireAuth(req, reply);
+    if (!p) return;
+    const { rows } = await pool.query<UserRow>(
+      `SELECT u.* FROM interactions i
+       JOIN users u ON u.id = i.peer_id
+       WHERE i.user_id = $1 AND u.status = 'approved'
+       ORDER BY i.cnt DESC, i.last_at DESC
+       LIMIT 30`,
+      [p.sub],
+    );
+    return reply.send({ users: rows.map(pub) });
+  });
+
   // ===== Quản trị (chỉ chủ) =====
   const requireOwner = (req: FastifyRequest, reply: FastifyReply) => {
     const p = requireAuth(req, reply);

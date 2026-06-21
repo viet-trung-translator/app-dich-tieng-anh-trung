@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { api, type User } from "../api.ts";
 import type { OnlineUser } from "../signaling.ts";
 import { useI18n } from "../i18n.ts";
@@ -17,9 +17,17 @@ export function Home(props: {
   const { user, online } = props;
   const [q, setQ] = useState("");
   const [results, setResults] = useState<User[]>([]);
+  const [contacts, setContacts] = useState<User[]>([]);
 
   const langLabel = (l: string) => (l === "zh" ? t("chinese") : t("vietnamese"));
   const startCall = (id: number) => props.onCall(id);
+
+  useEffect(() => {
+    api
+      .contacts()
+      .then((r) => setContacts(r.users))
+      .catch(() => {});
+  }, []);
 
   async function doSearch(e: FormEvent) {
     e.preventDefault();
@@ -86,6 +94,27 @@ export function Home(props: {
             </div>
           ))}
       </section>
+
+      {contacts.length > 0 && (
+        <section className="card">
+          <h3>{t("contacts")}</h3>
+          {contacts.map((u) => (
+            <div key={u.id} className="user-row">
+              <span>
+                {onlineIds.has(u.id) && <span className="dot" />} {u.username}{" "}
+                <small>· {langLabel(u.language)}</small>
+              </span>
+              <button
+                className="call"
+                disabled={!onlineIds.has(u.id)}
+                onClick={() => startCall(u.id)}
+              >
+                📞 {onlineIds.has(u.id) ? t("call") : t("offline")}
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
 
       <section className="card">
         <h3>

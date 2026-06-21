@@ -4,10 +4,18 @@
  */
 export class StreamPlayer {
   private ctx: AudioContext;
+  private gain: GainNode;
   private nextTime = 0;
 
   constructor(private sampleRate = 24000) {
     this.ctx = new AudioContext({ sampleRate });
+    this.gain = this.ctx.createGain();
+    this.gain.connect(this.ctx.destination);
+  }
+
+  /** Đặt âm lượng phát (0..1). Loa trong = nhỏ (đỡ vọng), loa ngoài = to. */
+  setVolume(v: number): void {
+    this.gain.gain.value = v;
   }
 
   /** Nhận 1 chunk PCM (base64) từ server và đưa vào hàng phát. */

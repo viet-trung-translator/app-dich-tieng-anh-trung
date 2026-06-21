@@ -32,6 +32,7 @@ export const api = {
   me: () => req<{ user: User }>("/api/me"),
   search: (q: string) =>
     req<{ users: User[] }>(`/api/users/search?q=${encodeURIComponent(q)}`),
+  contacts: () => req<{ users: User[] }>("/api/contacts"),
   adminList: () => req<{ users: User[] }>("/api/admin/users"),
   adminAction: (id: number, action: "approve" | "disable") =>
     req(`/api/admin/users/${id}/${action}`, { method: "POST", body: "{}" }),

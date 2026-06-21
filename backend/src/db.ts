@@ -23,7 +23,26 @@ export async function initDb(): Promise<void> {
       created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
-  console.log("[db] Sẵn sàng (bảng users).");
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS interactions (
+      user_id  INTEGER NOT NULL,
+      peer_id  INTEGER NOT NULL,
+      cnt      INTEGER NOT NULL DEFAULT 0,
+      last_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (user_id, peer_id)
+    );
+  `);
+  console.log("[db] Sẵn sàng (bảng users, interactions).");
+}
+
+/** Ghi 1 lượt liên lạc giữa 2 người (cả 2 chiều) để xếp hạng "hay liên lạc". */
+export async function recordInteraction(a: number, b: number): Promise<void> {
+  const sql = `INSERT INTO interactions (user_id, peer_id, cnt, last_at)
+               VALUES ($1, $2, 1, now())
+               ON CONFLICT (user_id, peer_id)
+               DO UPDATE SET cnt = interactions.cnt + 1, last_at = now()`;
+  await pool.query(sql, [a, b]);
+  await pool.query(sql, [b, a]);
 }
 
 export type UserRow = {

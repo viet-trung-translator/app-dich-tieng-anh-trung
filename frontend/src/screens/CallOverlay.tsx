@@ -1,4 +1,5 @@
 import type { Peer } from "../signaling.ts";
+import type { SpeakerMode } from "../call-session.ts";
 import { useI18n } from "../i18n.ts";
 
 export type CallPhase =
@@ -9,7 +10,10 @@ export type CallPhase =
 
 export function CallOverlay(props: {
   state: CallPhase;
-  subtitle?: string;
+  myText?: string;
+  theirText?: string;
+  speakerMode?: SpeakerMode;
+  onToggleSpeaker?: () => void;
   onAccept: () => void;
   onReject: () => void;
   onCancel: () => void;
@@ -21,6 +25,7 @@ export function CallOverlay(props: {
 
   const langLabel = (l: string) => (l === "zh" ? t("chinese") : t("vietnamese"));
   const who = s.phase === "outgoing" ? s.to : s.phase === "incoming" ? s.from : s.peer;
+  const loud = props.speakerMode === "loud";
 
   return (
     <div className="call-overlay">
@@ -34,13 +39,26 @@ export function CallOverlay(props: {
         {s.phase === "active" && <div className="call-status green">{t("in_call")}</div>}
 
         {s.phase === "active" && (
-          <div className="call-subtitle">
-            {props.subtitle?.trim() ? (
-              props.subtitle
-            ) : (
-              <span className="placeholder">{t("subtitle_ph", { name: who.username })}</span>
+          <>
+            <button className="speaker-toggle" onClick={props.onToggleSpeaker}>
+              {loud ? `🔊 ${t("speaker_loud")}` : `🔈 ${t("speaker_ear")}`}
+            </button>
+
+            {/* Loa ngoài: hiện cả lời mình nói + bản dịch nhận về. Loa trong: chỉ bản dịch. */}
+            {loud && (
+              <div className="call-line">
+                <div className="call-line-label">{t("you_said")}</div>
+                <div className="call-line-body">{props.myText || "…"}</div>
+              </div>
             )}
-          </div>
+            <div className="call-subtitle">
+              {props.theirText?.trim() ? (
+                props.theirText
+              ) : (
+                <span className="placeholder">{t("subtitle_ph", { name: who.username })}</span>
+              )}
+            </div>
+          </>
         )}
 
         <div className="call-actions">

@@ -52,6 +52,10 @@ const vi: Dict = {
   accept: "Nghe",
   hangup: "Cúp máy",
   subtitle_ph: "Bản dịch lời {name} sẽ hiện ở đây...",
+  speaker_loud: "Loa ngoài",
+  speaker_ear: "Loa trong",
+  you_said: "Bạn nói",
+  contacts: "Hay liên lạc",
 
   admin_title: "Quản trị tài khoản",
   back_home: "← Về trang chính",
@@ -121,6 +125,10 @@ const zh: Dict = {
   accept: "接听",
   hangup: "挂断",
   subtitle_ph: "{name} 的翻译将显示在这里...",
+  speaker_loud: "外放",
+  speaker_ear: "听筒",
+  you_said: "你说",
+  contacts: "常联系",
 
   admin_title: "账号管理",
   back_home: "← 返回主页",

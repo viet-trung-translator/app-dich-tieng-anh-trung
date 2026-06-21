@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { verifyRawToken } from "./auth.js";
+import { recordInteraction } from "./db.js";
 
 type Conn = { userId: number; username: string; language: string; socket: any };
 type PeerInfo = { id: number; username: string; language: string };
@@ -89,6 +90,7 @@ function handleSignal(self: Conn, msg: any): void {
       call.state = "active";
       sendTo(call.callerId, { type: "accepted", callId: call.id, peer: peerOf(call.calleeId) });
       sendTo(call.calleeId, { type: "accepted", callId: call.id, peer: peerOf(call.callerId) });
+      void recordInteraction(call.callerId, call.calleeId).catch(() => {});
       break;
     }
     case "reject": {

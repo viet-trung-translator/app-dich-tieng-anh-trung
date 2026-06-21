@@ -450,8 +450,40 @@ select {
 .hangup {
   background: #ef4444;
 }
+.speaker-toggle {
+  margin: 10px auto 4px;
+  display: block;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e5e7eb;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.call-line {
+  margin: 12px auto 0;
+  max-width: 600px;
+  text-align: left;
+}
+.call-line-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #818cf8;
+  margin-bottom: 4px;
+}
+.call-line-body {
+  background: rgba(99, 102, 241, 0.1);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 18px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  min-height: 44px;
+}
 .call-subtitle {
-  margin: 20px auto;
+  margin: 12px auto 0;
   max-width: 600px;
   min-height: 90px;
   background: rgba(255, 255, 255, 0.06);
