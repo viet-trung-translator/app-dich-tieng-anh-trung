@@ -36,9 +36,7 @@ export class CallSession {
     const rec = new MicRecorder();
     this.rec = rec;
     await rec.start((pcm) => {
-      // Chống vòng lặp: khi loa đang phát bản dịch thì KHÔNG thu mic
-      // (nếu thu, loa lọt vào mic -> dịch ngược -> lặp vô tận).
-      if (this.player?.isPlaying()) return;
+      // Mic LUÔN thu (full-duplex). Dựa vào AEC của trình duyệt để lược tiếng loa.
       if (ws.readyState === WebSocket.OPEN) ws.send(pcm);
     });
   }

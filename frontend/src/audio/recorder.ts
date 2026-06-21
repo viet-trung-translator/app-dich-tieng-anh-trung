@@ -15,9 +15,9 @@ export class MicRecorder {
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
+        echoCancellation: true, // khử tiếng loa khỏi mic
+        noiseSuppression: true, // khử ồn nền (máy móc nhà xưởng)
+        autoGainControl: false, // tắt: tránh khuếch đại tiếng loa rò -> đỡ vòng lặp
       },
     });
 

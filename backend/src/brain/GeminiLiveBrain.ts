@@ -168,8 +168,12 @@ export class GeminiLiveBrain implements TranslatorBrain {
   private targets: string[] = [];
   private out: (e: BrainEvent) => void = () => {};
   // LÚC NÀO CŨNG chỉ 1 luồng được phát -> không bao giờ chồng tiếng/hỗn loạn.
-  // Chuyển luồng theo ngôn ngữ nhận diện từ transcript đầu vào.
+  // Chuyển luồng theo ngôn ngữ nhận diện, CÓ ĐỘ TRỄ chống đổi nhầm (hysteresis).
   private activeIdx = 0;
+  private currentLang: string | null = null; // ngôn ngữ đang nghe hiện tại
+  private pendingLang: string | null = null; // ngôn ngữ khác đang chờ xác nhận
+  private switchTimer: ReturnType<typeof setTimeout> | null = null;
+  private static SWITCH_DELAY_MS = 500; // tiếng khác phải kéo dài 0.5s mới đổi
 
   constructor() {
     this.ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
@@ -202,10 +206,42 @@ export class GeminiLiveBrain implements TranslatorBrain {
     await Promise.all(this.streams.map((s) => s.start()));
   }
 
-  /** Transcript đầu vào -> chọn luồng có đích KHÁC tiếng đang nói làm luồng phát. */
+  /** Đặt luồng phát theo ngôn ngữ đang nói: phát luồng có đích KHÁC tiếng đó. */
+  private setActive(lang: string): void {
+    this.currentLang = lang;
+    this.activeIdx = this.targets[0] !== lang ? 0 : 1;
+  }
+
+  /**
+   * Transcript đầu vào -> nhận diện + chuyển hướng dịch CÓ ĐỘ TRỄ:
+   * giữ ngôn ngữ hiện tại; chỉ đổi khi nghe tiếng KHÁC liên tục >= 0.5s
+   * (tránh đổi nhầm khi có tiếng kia lộn xộn/chen vào trong chốc lát).
+   */
   private onInput(text: string): void {
     const lang = detectLang(text);
-    this.activeIdx = this.targets[0] !== lang ? 0 : 1;
+    if (this.currentLang === null) {
+      this.setActive(lang); // lần đầu: theo ngay
+      return;
+    }
+    if (lang === this.currentLang) {
+      // vẫn đúng tiếng hiện tại -> hủy ý định chuyển
+      this.pendingLang = null;
+      if (this.switchTimer) {
+        clearTimeout(this.switchTimer);
+        this.switchTimer = null;
+      }
+      return;
+    }
+    // nghe thấy tiếng khác -> chỉ đổi nếu nó duy trì đủ 0.5s
+    if (this.pendingLang !== lang) {
+      this.pendingLang = lang;
+      if (this.switchTimer) clearTimeout(this.switchTimer);
+      this.switchTimer = setTimeout(() => {
+        this.setActive(lang);
+        this.pendingLang = null;
+        this.switchTimer = null;
+      }, GeminiLiveBrain.SWITCH_DELAY_MS);
+    }
   }
 
   /** Chỉ luồng đang active mới được phát audio + chữ dịch. */
@@ -221,6 +257,10 @@ export class GeminiLiveBrain implements TranslatorBrain {
   }
 
   async stop(): Promise<void> {
+    if (this.switchTimer) clearTimeout(this.switchTimer);
+    this.switchTimer = null;
+    this.currentLang = null;
+    this.pendingLang = null;
     await Promise.all(this.streams.map((s) => s.stop()));
     this.streams = [];
   }
