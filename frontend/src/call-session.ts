@@ -14,12 +14,10 @@ export class CallSession {
   private ws: WebSocket | null = null;
   private rec: MicRecorder | null = null;
   private player: StreamPlayer | null = null;
-  private mode: SpeakerMode = "earpiece";
   onMine: (text: string, final: boolean) => void = () => {};
   onTheirs: (text: string, final: boolean) => void = () => {};
 
   async start(callId: string, mode: SpeakerMode): Promise<void> {
-    this.mode = mode;
     const token = getToken();
     const proto = location.protocol === "https:" ? "wss" : "ws";
     const ws = new WebSocket(`${proto}://${location.host}/call-media?callId=${callId}&token=${token}`);
@@ -53,7 +51,6 @@ export class CallSession {
   }
 
   setMode(mode: SpeakerMode): void {
-    this.mode = mode;
     this.player?.setVolume(mode === "loud" ? 1 : 0.4);
   }
 
