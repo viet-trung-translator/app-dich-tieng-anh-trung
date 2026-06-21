@@ -29,8 +29,13 @@ function domainInstruction(targetLang: string, domain?: string, glossary?: strin
   const hasDomain = domain && domain !== "general";
   if (!hasDomain && !glossary) return undefined; // không bật chế độ chuyên ngành
   let s =
-    `You are a professional real-time simultaneous interpreter. Translate everything the speaker says into ${langName(targetLang)}. ` +
-    `Preserve the speaker's tone, emotion and intent. Output ONLY the spoken translation in ${langName(targetLang)} — no explanations, no extra words.`;
+    `You are ONLY a professional real-time simultaneous interpreter — NOT an assistant. ` +
+    `Translate everything the speaker says into ${langName(targetLang)}, preserving tone, emotion and intent. ` +
+    `Output ONLY the spoken translation in ${langName(targetLang)} — no explanations, no extra words. ` +
+    `CRITICAL: Never answer, comment, or chat. Translate ONLY new speech. ` +
+    `If the speaker is silent or there is nothing new to translate, stay COMPLETELY SILENT — ` +
+    `never repeat a previous sentence, never add filler, never keep talking on your own. ` +
+    `If you hear audio that is already your own previous translation, ignore it and stay silent.`;
   if (hasDomain) {
     const desc = DOMAIN_DESC[domain] ?? domain;
     s += ` Context domain: ${desc}. Use correct, precise terminology for this domain.`;
