@@ -108,13 +108,38 @@ function handleSignal(self: Conn, msg: any): void {
   }
 }
 
+let heartbeatStarted = false;
+/** Nhịp tim: 30s/lần ping mọi kết nối; ai không "pong" lại -> coi là chết, đóng + dọn. */
+function startHeartbeat(): void {
+  if (heartbeatStarted) return;
+  heartbeatStarted = true;
+  setInterval(() => {
+    for (const conn of online.values()) {
+      const ws = conn.socket;
+      if (ws.isAlive === false) {
+        ws.terminate(); // -> kích hoạt 'close' -> dọn dẹp + broadcast
+        continue;
+      }
+      ws.isAlive = false;
+      try {
+        ws.ping();
+      } catch {
+        /* ignore */
+      }
+    }
+  }, 30000);
+}
+
 export function registerPresence(app: FastifyInstance): void {
+  startHeartbeat();
   app.get("/presence", { websocket: true }, (socket: any, req) => {
     const p = verifyRawToken((req.query as { token?: string }).token);
     if (!p) {
       socket.close();
       return;
     }
+    socket.isAlive = true;
+    socket.on("pong", () => (socket.isAlive = true));
     const conn: Conn = { userId: p.sub, username: p.username, language: p.language, socket };
     online.set(p.sub, conn);
     broadcastOnline();
