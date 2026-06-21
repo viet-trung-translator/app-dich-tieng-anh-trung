@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { api, type User } from "../api.ts";
-
-const langLabel = (l: string) => (l === "zh" ? "Trung" : "Việt");
-const statusLabel: Record<string, string> = {
-  pending: "Chờ duyệt",
-  approved: "Đã duyệt",
-  disabled: "Đã khóa",
-};
+import { useI18n } from "../i18n.ts";
 
 export function Admin({ onBack }: { onBack: () => void }) {
+  const { t } = useI18n();
+  const langLabel = (l: string) => (l === "zh" ? t("chinese") : t("vietnamese"));
+  const statusLabel: Record<string, string> = {
+    pending: t("st_pending"),
+    approved: t("st_approved"),
+    disabled: t("st_disabled"),
+  };
   const [users, setUsers] = useState<User[]>([]);
   const [err, setErr] = useState("");
 
@@ -29,7 +30,7 @@ export function Admin({ onBack }: { onBack: () => void }) {
     load();
   }
   async function del(u: User) {
-    if (!confirm(`Xóa tài khoản "${u.username}"?`)) return;
+    if (!confirm(t("confirm_delete", { name: u.username }))) return;
     await api.adminDelete(u.id);
     load();
   }
@@ -38,9 +39,9 @@ export function Admin({ onBack }: { onBack: () => void }) {
     <div className="home">
       <header className="topbar">
         <button className="link-btn" onClick={onBack}>
-          ← Về trang chính
+          {t("back_home")}
         </button>
-        <b>Quản trị tài khoản</b>
+        <b>{t("admin_title")}</b>
       </header>
 
       {err && <div className="msg">{err}</div>}
@@ -57,16 +58,16 @@ export function Admin({ onBack }: { onBack: () => void }) {
               <span className="admin-actions">
                 {u.status !== "approved" && (
                   <button className="ok" onClick={() => act(u, "approve")}>
-                    Duyệt
+                    {t("approve")}
                   </button>
                 )}
                 {u.status === "approved" && (
                   <button className="warn-btn" onClick={() => act(u, "disable")}>
-                    Khóa
+                    {t("lock")}
                   </button>
                 )}
                 <button className="danger" onClick={() => del(u)}>
-                  Xóa
+                  {t("delete")}
                 </button>
               </span>
             )}

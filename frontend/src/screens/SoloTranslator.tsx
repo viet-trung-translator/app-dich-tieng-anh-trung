@@ -2,17 +2,19 @@ import { useRef, useState } from "react";
 import { MicRecorder } from "../audio/recorder.ts";
 import { StreamPlayer } from "../audio/player.ts";
 import { TranslateSocket, type ConnState, type ServerEvent } from "../ws/client.ts";
+import { useI18n } from "../i18n.ts";
 
 type UiState = "idle" | "active" | "error";
 
 /** App dịch 1 máy (chế độ song song) — giữ lại từ bản gốc. */
 export function SoloTranslator({ onBack }: { onBack?: () => void }) {
+  const { t } = useI18n();
   const [ui, setUi] = useState<UiState>("idle");
   const [conn, setConn] = useState<ConnState>("closed");
   const [level, setLevel] = useState(0);
   const [source, setSource] = useState("");
   const [translation, setTranslation] = useState("");
-  const [statusMsg, setStatusMsg] = useState("Bấm micro để bắt đầu.");
+  const [statusMsg, setStatusMsg] = useState(t("solo_start"));
   const [playing, setPlaying] = useState(false);
 
   const recorderRef = useRef<MicRecorder | null>(null);
@@ -64,7 +66,7 @@ export function SoloTranslator({ onBack }: { onBack?: () => void }) {
         break;
       case "open":
         everOpenRef.current = true;
-        setStatusMsg("Đang nghe... (nói tiếng Trung hoặc tiếng Việt)");
+        setStatusMsg(t("solo_listening"));
         break;
       case "reconnecting":
         setStatusMsg(everOpenRef.current ? "Mất kết nối — đang kết nối lại..." : COLD_START);
@@ -123,11 +125,11 @@ export function SoloTranslator({ onBack }: { onBack?: () => void }) {
     <div className="app">
       {onBack && (
         <button className="link-btn" onClick={onBack}>
-          ← Về trang chính
+          {t("back_home")}
         </button>
       )}
-      <h1>Phiên dịch Trung ↔ Việt</h1>
-      <p className="subtitle">Dịch 1 máy · Gemini 3.5 Live Translate</p>
+      <h1>{t("solo_title")}</h1>
+      <p className="subtitle">{t("solo_sub")}</p>
 
       <button
         className={`mic ${active ? "on" : ""}`}
@@ -141,16 +143,12 @@ export function SoloTranslator({ onBack }: { onBack?: () => void }) {
 
       <div className="panes">
         <div className="pane">
-          <div className="pane-label">Bản gốc</div>
-          <div className="pane-body">
-            {source || <span className="placeholder">Câu bạn nói sẽ hiện ở đây...</span>}
-          </div>
+          <div className="pane-label">{t("solo_src")}</div>
+          <div className="pane-body">{source || <span className="placeholder">…</span>}</div>
         </div>
         <div className="pane">
-          <div className="pane-label">Bản dịch</div>
-          <div className="pane-body">
-            {translation || <span className="placeholder">Bản dịch sẽ chạy ở đây...</span>}
-          </div>
+          <div className="pane-label">{t("solo_dst")}</div>
+          <div className="pane-body">{translation || <span className="placeholder">…</span>}</div>
         </div>
       </div>
     </div>

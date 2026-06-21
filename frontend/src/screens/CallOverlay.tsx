@@ -1,12 +1,11 @@
 import type { Peer } from "../signaling.ts";
+import { useI18n } from "../i18n.ts";
 
 export type CallPhase =
   | { phase: "idle" }
   | { phase: "outgoing"; callId: string | null; to: Peer }
   | { phase: "incoming"; callId: string; from: Peer }
   | { phase: "active"; callId: string; peer: Peer };
-
-const langLabel = (l: string) => (l === "zh" ? "Tiếng Trung" : "Tiếng Việt");
 
 export function CallOverlay(props: {
   state: CallPhase;
@@ -16,11 +15,12 @@ export function CallOverlay(props: {
   onCancel: () => void;
   onHangup: () => void;
 }) {
+  const { t } = useI18n();
   const s = props.state;
   if (s.phase === "idle") return null;
 
-  const who =
-    s.phase === "outgoing" ? s.to : s.phase === "incoming" ? s.from : s.peer;
+  const langLabel = (l: string) => (l === "zh" ? t("chinese") : t("vietnamese"));
+  const who = s.phase === "outgoing" ? s.to : s.phase === "incoming" ? s.from : s.peer;
 
   return (
     <div className="call-overlay">
@@ -29,16 +29,16 @@ export function CallOverlay(props: {
         <div className="call-name">{who.username}</div>
         <div className="call-sub">{langLabel(who.language)}</div>
 
-        {s.phase === "outgoing" && <div className="call-status">Đang gọi...</div>}
-        {s.phase === "incoming" && <div className="call-status">Cuộc gọi đến</div>}
-        {s.phase === "active" && <div className="call-status green">Đang trong cuộc gọi</div>}
+        {s.phase === "outgoing" && <div className="call-status">{t("calling")}</div>}
+        {s.phase === "incoming" && <div className="call-status">{t("incoming")}</div>}
+        {s.phase === "active" && <div className="call-status green">{t("in_call")}</div>}
 
         {s.phase === "active" && (
           <div className="call-subtitle">
             {props.subtitle?.trim() ? (
               props.subtitle
             ) : (
-              <span className="placeholder">Bản dịch lời {who.username} sẽ hiện ở đây...</span>
+              <span className="placeholder">{t("subtitle_ph", { name: who.username })}</span>
             )}
           </div>
         )}
@@ -46,26 +46,25 @@ export function CallOverlay(props: {
         <div className="call-actions">
           {s.phase === "outgoing" && (
             <button className="hangup" onClick={props.onCancel}>
-              Hủy
+              {t("cancel")}
             </button>
           )}
           {s.phase === "incoming" && (
             <>
               <button className="reject" onClick={props.onReject}>
-                Từ chối
+                {t("reject")}
               </button>
               <button className="accept-call" onClick={props.onAccept}>
-                Nghe
+                {t("accept")}
               </button>
             </>
           )}
           {s.phase === "active" && (
             <button className="hangup" onClick={props.onHangup}>
-              Cúp máy
+              {t("hangup")}
             </button>
           )}
         </div>
-
       </div>
     </div>
   );

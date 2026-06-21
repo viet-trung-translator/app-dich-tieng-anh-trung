@@ -106,6 +106,27 @@ h1 {
   text-align: center;
 }
 
+.ui-lang {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.ui-lang button {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: #c7d2fe;
+  border-radius: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.ui-lang button.on {
+  background: #6366f1;
+  color: #fff;
+  border-color: #6366f1;
+}
+
 .tabs {
   display: flex;
   gap: 8px;

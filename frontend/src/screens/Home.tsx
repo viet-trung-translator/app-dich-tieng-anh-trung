@@ -1,16 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { api, type User } from "../api.ts";
 import type { OnlineUser } from "../signaling.ts";
+import { useI18n } from "../i18n.ts";
 
-const langLabel = (l: string) => (l === "zh" ? "Tiếng Trung" : "Tiếng Việt");
-
-const DOMAINS = [
-  { key: "general", label: "Thường (mặc định, nhanh nhất)" },
-  { key: "medical", label: "Y tế" },
-  { key: "technical", label: "Kỹ thuật" },
-  { key: "legal", label: "Pháp lý" },
-  { key: "business", label: "Thương mại" },
-];
+const DOMAIN_KEYS = ["general", "factory", "medical", "technical", "legal", "business"];
 
 export function Home(props: {
   user: User;
@@ -21,12 +14,14 @@ export function Home(props: {
   onOpenAdmin: () => void;
   onLogout: () => void;
 }) {
+  const { t } = useI18n();
   const { user, online } = props;
   const [q, setQ] = useState("");
   const [results, setResults] = useState<User[]>([]);
   const [domain, setDomain] = useState("general");
   const [glossary, setGlossary] = useState("");
 
+  const langLabel = (l: string) => (l === "zh" ? t("chinese") : t("vietnamese"));
   const startCall = (id: number) => props.onCall(id, domain, glossary.trim() || undefined);
 
   async function doSearch(e: FormEvent) {
@@ -49,34 +44,34 @@ export function Home(props: {
         <div>
           <b>{user.username}</b>
           <span className="badge">{langLabel(user.language)}</span>
-          {user.role === "owner" && <span className="badge owner">CHỦ</span>}
+          {user.role === "owner" && <span className="badge owner">{t("owner")}</span>}
         </div>
         <div className="actions">
           {user.role === "owner" && (
             <button className="link-btn" onClick={props.onOpenAdmin}>
-              Quản trị
+              {t("admin")}
             </button>
           )}
           <button className="link-btn" onClick={props.onLogout}>
-            Đăng xuất
+            {t("logout")}
           </button>
         </div>
       </header>
 
       {!props.connected && (
         <div className="status warn" style={{ marginBottom: 12 }}>
-          Đang kết nối máy chủ... (gói free có thể chờ ~50 giây lần đầu)
+          {t("connecting_server")}
         </div>
       )}
 
       <section className="card">
-        <h3>Chế độ dịch</h3>
+        <h3>{t("translate_mode")}</h3>
         <label className="lang-pick">
-          Lĩnh vực:
+          {t("domain")}
           <select value={domain} onChange={(e) => setDomain(e.target.value)}>
-            {DOMAINS.map((d) => (
-              <option key={d.key} value={d.key}>
-                {d.label}
+            {DOMAIN_KEYS.map((k) => (
+              <option key={k} value={k}>
+                {t("dom_" + k)}
               </option>
             ))}
           </select>
@@ -84,25 +79,21 @@ export function Home(props: {
         {domain !== "general" && (
           <textarea
             className="glossary"
-            placeholder="Thuật ngữ riêng (tùy chọn), vd: huyết áp => 血压, nhồi máu cơ tim => 心肌梗死"
+            placeholder={t("glossary_ph")}
             value={glossary}
             onChange={(e) => setGlossary(e.target.value)}
             rows={3}
           />
         )}
-        <div className="hint">
-          {domain === "general"
-            ? "Dịch nhanh, giữ ngữ điệu tốt nhất."
-            : "Dùng model hiểu ngữ cảnh chuyên ngành (có thể trễ hơn chút)."}
-        </div>
+        <div className="hint">{domain === "general" ? t("hint_general") : t("hint_domain")}</div>
       </section>
 
       <section className="card">
-        <h3>Gọi cho người khác</h3>
+        <h3>{t("call_others")}</h3>
         <form onSubmit={doSearch} className="search">
-          <input placeholder="Tìm theo tên..." value={q} onChange={(e) => setQ(e.target.value)} />
+          <input placeholder={t("search_ph")} value={q} onChange={(e) => setQ(e.target.value)} />
           <button className="primary" type="submit">
-            Tìm
+            {t("search_btn")}
           </button>
         </form>
         {results
@@ -114,29 +105,31 @@ export function Home(props: {
                 <small>· {langLabel(u.language)}</small>
               </span>
               <button className="call" disabled={!onlineIds.has(u.id)} onClick={() => startCall(u.id)}>
-                📞 {onlineIds.has(u.id) ? "Gọi" : "Offline"}
+                📞 {onlineIds.has(u.id) ? t("call") : t("offline")}
               </button>
             </div>
           ))}
       </section>
 
       <section className="card">
-        <h3>Đang online ({others.length})</h3>
-        {others.length === 0 && <div className="placeholder">Chưa có ai khác online.</div>}
+        <h3>
+          {t("online")} ({others.length})
+        </h3>
+        {others.length === 0 && <div className="placeholder">{t("nobody_online")}</div>}
         {others.map((u) => (
           <div key={u.id} className="user-row">
             <span>
               <span className="dot" /> {u.username} <small>· {langLabel(u.language)}</small>
             </span>
             <button className="call" onClick={() => startCall(u.id)}>
-              📞 Gọi
+              📞 {t("call")}
             </button>
           </div>
         ))}
       </section>
 
       <button className="link-btn center" onClick={props.onOpenSolo}>
-        🎤 Dùng chế độ dịch 1 máy
+        {t("solo_mode")}
       </button>
     </div>
   );

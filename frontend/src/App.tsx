@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, getToken, clearToken, type User } from "./api.ts";
 import { Signaling, type OnlineUser, type Peer } from "./signaling.ts";
 import { CallSession } from "./call-session.ts";
@@ -7,6 +7,7 @@ import { Home } from "./screens/Home.tsx";
 import { Admin } from "./screens/Admin.tsx";
 import { SoloTranslator } from "./screens/SoloTranslator.tsx";
 import { CallOverlay, type CallPhase } from "./screens/CallOverlay.tsx";
+import { LangContext, makeT, type Lang } from "./i18n.ts";
 
 type View = "home" | "admin" | "solo";
 
@@ -18,6 +19,18 @@ export function App() {
   const [connected, setConnected] = useState(false);
   const [call, setCall] = useState<CallPhase>({ phase: "idle" });
   const [subtitle, setSubtitle] = useState("");
+  const [lang, setLangState] = useState<Lang>(
+    () => (localStorage.getItem("uiLang") as Lang) || "vi",
+  );
+  const t = makeT(lang);
+  const setLang = (l: Lang) => {
+    localStorage.setItem("uiLang", l);
+    setLangState(l);
+  };
+  // Sau khi đăng nhập -> giao diện theo ngôn ngữ tài khoản (người Trung -> UI tiếng Trung).
+  useEffect(() => {
+    if (user) setLang(user.language);
+  }, [user]);
 
   const sigRef = useRef<Signaling | null>(null);
   const callSessRef = useRef<CallSession | null>(null);
@@ -70,7 +83,7 @@ export function App() {
           setCall({ phase: "idle" });
           break;
         case "unavailable":
-          alert(e.reason === "busy" ? "Người này đang bận." : "Người này không online.");
+          alert(makeT(lang)(e.reason === "busy" ? "busy_busy" : "busy_unavailable"));
           setCall({ phase: "idle" });
           break;
       }
@@ -100,8 +113,12 @@ export function App() {
     setCall({ phase: "idle" });
   }
 
-  if (loading) return <div className="app center-screen">Đang tải...</div>;
-  if (!user) return <Auth onAuthed={setUser} />;
+  const wrap = (node: ReactNode) => (
+    <LangContext.Provider value={{ lang, t, setLang }}>{node}</LangContext.Provider>
+  );
+
+  if (loading) return wrap(<div className="app center-screen">{t("loading")}</div>);
+  if (!user) return wrap(<Auth onAuthed={setUser} />);
 
   const overlay = (
     <CallOverlay
@@ -139,10 +156,10 @@ export function App() {
       />
     );
 
-  return (
+  return wrap(
     <>
       {screen}
       {overlay}
-    </>
+    </>,
   );
 }

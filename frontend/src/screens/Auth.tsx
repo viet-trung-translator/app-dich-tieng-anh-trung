@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { api, setToken, type User } from "../api.ts";
+import { useI18n } from "../i18n.ts";
 
 export function Auth({ onAuthed }: { onAuthed: (u: User) => void }) {
+  const { t, lang, setLang } = useI18n();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -20,7 +22,7 @@ export function Auth({ onAuthed }: { onAuthed: (u: User) => void }) {
         onAuthed(r.user);
       } else {
         const r = await api.register({ username, password, language });
-        setMsg((r as { message?: string }).message ?? "Đăng ký thành công.");
+        setMsg((r as { message?: string }).message ?? "OK");
         setMode("login");
       }
     } catch (err) {
@@ -32,42 +34,51 @@ export function Auth({ onAuthed }: { onAuthed: (u: User) => void }) {
 
   return (
     <div className="auth">
-      <h1>Phiên dịch gọi điện</h1>
-      <p className="subtitle">Trung ↔ Việt · Gemini 3.5 Live Translate</p>
+      <div className="ui-lang">
+        <button className={lang === "vi" ? "on" : ""} onClick={() => setLang("vi")}>
+          VI
+        </button>
+        <button className={lang === "zh" ? "on" : ""} onClick={() => setLang("zh")}>
+          中文
+        </button>
+      </div>
+
+      <h1>{t("app_title")}</h1>
+      <p className="subtitle">{t("app_sub")}</p>
 
       <div className="tabs">
         <button className={mode === "login" ? "on" : ""} onClick={() => setMode("login")}>
-          Đăng nhập
+          {t("login")}
         </button>
         <button className={mode === "register" ? "on" : ""} onClick={() => setMode("register")}>
-          Đăng ký
+          {t("register")}
         </button>
       </div>
 
       <form onSubmit={submit} className="form">
         <input
-          placeholder="Tên đăng nhập"
+          placeholder={t("username")}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoCapitalize="none"
         />
         <input
           type="password"
-          placeholder="Mật khẩu"
+          placeholder={t("password")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
         {mode === "register" && (
           <label className="lang-pick">
-            Ngôn ngữ của bạn:
+            {t("your_language")}
             <select value={language} onChange={(e) => setLanguage(e.target.value as "vi" | "zh")}>
-              <option value="vi">Tiếng Việt</option>
-              <option value="zh">Tiếng Trung</option>
+              <option value="vi">{t("vietnamese")}</option>
+              <option value="zh">{t("chinese")}</option>
             </select>
           </label>
         )}
         <button type="submit" className="primary" disabled={busy}>
-          {busy ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : "Đăng ký"}
+          {busy ? t("processing") : mode === "login" ? t("login") : t("register")}
         </button>
       </form>
 

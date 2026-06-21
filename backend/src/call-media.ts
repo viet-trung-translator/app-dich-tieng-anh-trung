@@ -13,6 +13,17 @@ const rooms = new Map<string, Map<number, any>>();
 
 const langName = (l: string) => (l === "zh" ? "Chinese (Mandarin)" : l === "vi" ? "Vietnamese" : l);
 
+// Mô tả lĩnh vực (giúp model hiểu ngữ cảnh để dùng đúng thuật ngữ).
+const DOMAIN_DESC: Record<string, string> = {
+  factory:
+    "factory / manufacturing shop floor: machinery, production lines, assembly, quality control (QC), " +
+    "equipment operation, maintenance, materials, work orders, safety and worker instructions",
+  medical: "medical / healthcare",
+  technical: "technical / engineering",
+  legal: "legal",
+  business: "business / commerce",
+};
+
 /** Chỉ thị cho model đa năng ở chế độ chuyên ngành (dịch sang targetLang + glossary). */
 function domainInstruction(targetLang: string, domain?: string, glossary?: string): string | undefined {
   const hasDomain = domain && domain !== "general";
@@ -20,7 +31,10 @@ function domainInstruction(targetLang: string, domain?: string, glossary?: strin
   let s =
     `You are a professional real-time simultaneous interpreter. Translate everything the speaker says into ${langName(targetLang)}. ` +
     `Preserve the speaker's tone, emotion and intent. Output ONLY the spoken translation in ${langName(targetLang)} — no explanations, no extra words.`;
-  if (hasDomain) s += ` The conversation is in the "${domain}" domain; use correct, precise ${domain} terminology.`;
+  if (hasDomain) {
+    const desc = DOMAIN_DESC[domain] ?? domain;
+    s += ` Context domain: ${desc}. Use correct, precise terminology for this domain.`;
+  }
   if (glossary) s += ` Use this glossary exactly when relevant: ${glossary}.`;
   return s;
 }
